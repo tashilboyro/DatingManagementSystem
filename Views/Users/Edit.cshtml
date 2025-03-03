@@ -1,0 +1,103 @@
+﻿@model DatingManagementSystem.Models.User
+
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-lg p-4">
+        <h1 class="text-center text-primary">Edit User</h1>
+        <hr />
+
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    <input type="hidden" asp-for="UserID" />
+
+                    <div class="mb-3">
+                        <label asp-for="FirstName" class="form-label fw-bold"></label>
+                        <input asp-for="FirstName" class="form-control rounded-pill" required />
+                        <span asp-validation-for="FirstName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="LastName" class="form-label fw-bold"></label>
+                        <input asp-for="LastName" class="form-control rounded-pill" required />
+                        <span asp-validation-for="LastName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Age" class="form-label fw-bold"></label>
+                        <input asp-for="Age" type="number" class="form-control rounded-pill" required />
+                        <span asp-validation-for="Age" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Gender" class="form-label fw-bold"></label>
+                        <select asp-for="Gender" class="form-select rounded-pill" required>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <span asp-validation-for="Gender" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-bold"></label>
+                        <input asp-for="Email" type="email" class="form-control rounded-pill" required />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label fw-bold"></label>
+                        <input asp-for="Password" type="password" class="form-control rounded-pill" required />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Interests" class="form-label fw-bold"></label>
+                        <input asp-for="Interests" class="form-control rounded-pill" placeholder="Enter Interests (comma-separated)" />
+                        <span asp-validation-for="Interests" class="text-danger"></span>
+                    </div>
+
+                    <!-- Profile Picture Upload & Preview -->
+                    <div class="mb-3 text-center">
+                        <label class="form-label fw-bold">Current Profile Picture</label>
+                        <div>
+                            <img src="@Url.Action("GetProfilePicture", "Users", new { id = Model.UserID })"
+                                 alt="Profile Picture"
+                                 width="100"
+                                 height="100"
+                                 class="rounded-circle border border-secondary mb-2">
+                        </div>
+                        <label class="form-label fw-bold">Upload New Profile Picture</label>
+                        <input type="file" name="ProfilePictureFile" class="form-control rounded-pill" accept="image/*" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Bio" class="form-label fw-bold"></label>
+                        <textarea asp-for="Bio" class="form-control rounded" rows="3" placeholder="Write a short bio..." required></textarea>
+                        <span asp-validation-for="Bio" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="CreatedAt" class="form-label fw-bold"></label>
+                        <input asp-for="CreatedAt" type="datetime-local" class="form-control rounded-pill"
+                               value="@Model.CreatedAt.ToString("yyyy-MM-ddTHH:mm")" required />
+                        <span asp-validation-for="CreatedAt" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary rounded-pill shadow-sm fw-bold">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-3">
+        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill shadow-sm">Back to List</a>
+    </div>
+</div>

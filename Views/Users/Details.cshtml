@@ -1,0 +1,58 @@
+@model DatingManagementSystem.Models.User
+
+@{
+    ViewData["Title"] = "User Details";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-lg p-4">
+        <h1 class="text-center text-primary">User Details</h1>
+        <hr />
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="text-center mb-3">
+                    <img src="@Url.Action("GetProfilePicture", "Users", new { id = Model.UserID })"
+                         alt="Profile Picture"
+                         width="120"
+                         height="120"
+                         class="rounded-circle border border-secondary">
+                </div>
+
+                <dl class="row">
+                    <dt class="col-sm-4 fw-bold">First Name:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.FirstName)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Last Name:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.LastName)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Age:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Age)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Gender:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Gender)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Email:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Email)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Password:</dt>
+                    <dd class="col-sm-8"><span class="text-muted">Hidden for security</span></dd>
+
+                    <dt class="col-sm-4 fw-bold">Interests:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Interests)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Bio:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Bio)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Created At:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.CreatedAt)</dd>
+                </dl>
+
+                <div class="text-center mt-4">
+                    <a asp-action="Edit" asp-route-id="@Model?.UserID" class="btn btn-warning rounded-pill shadow-sm">Edit</a>
+                    <a asp-action="Index" class="btn btn-outline-secondary rounded-pill shadow-sm">Back to List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

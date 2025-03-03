@@ -1,0 +1,63 @@
+﻿@model DatingManagementSystem.Models.User
+
+@{
+    ViewData["Title"] = "Delete User";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-lg p-4 border-danger">
+        <h1 class="text-center text-danger">Delete User</h1>
+        <p class="text-center text-muted">Are you sure you want to delete this user? This action cannot be undone.</p>
+        <hr />
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="text-center mb-3">
+                    <img src="@Url.Action("GetProfilePicture", "Users", new { id = Model.UserID })"
+                         alt="Profile Picture"
+                         width="120"
+                         height="120"
+                         class="rounded-circle border border-secondary">
+                </div>
+
+                <dl class="row">
+                    <dt class="col-sm-4 fw-bold">First Name:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.FirstName)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Last Name:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.LastName)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Age:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Age)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Gender:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Gender)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Email:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Email)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Password:</dt>
+                    <dd class="col-sm-8"><span class="text-muted">Hidden for security</span></dd>
+
+                    <dt class="col-sm-4 fw-bold">Interests:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Interests)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Bio:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.Bio)</dd>
+
+                    <dt class="col-sm-4 fw-bold">Created At:</dt>
+                    <dd class="col-sm-8">@Html.DisplayFor(model => model.CreatedAt)</dd>
+                </dl>
+
+                <form asp-action="Delete" method="post" class="text-center mt-4">
+                    <input type="hidden" asp-for="UserID" />
+                    <button type="submit" class="btn btn-danger rounded-pill shadow-sm"
+                            onclick="return confirm('Are you sure you want to delete this user?');">
+                        Delete User
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary rounded-pill shadow-sm">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
