@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
+using System.Collections.Concurrent;
 
 namespace Lovebirds.Controllers
 {
@@ -63,6 +64,11 @@ namespace Lovebirds.Controllers
             return View();
         }
 
+        public static class CompatibilityStore
+        {
+            public static ConcurrentDictionary<int, Dictionary<int, double>> CompatibilityScores = new();
+        }
+
         // POST: Users/Create
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
@@ -98,6 +104,11 @@ namespace Lovebirds.Controllers
                 Console.WriteLine("Adding user to DB...");
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
+
+                // Compute compatibility score
+                ComputeCompatibility(user);
+
+
                 Console.WriteLine("User saved successfully!");
 
                 return RedirectToAction(nameof(Index));
@@ -109,6 +120,82 @@ namespace Lovebirds.Controllers
                 return View(user);
             }
         }
+
+        private void ComputeCompatibility(User newUser)
+        {
+            var users = _context.Users.ToList();
+            Dictionary<int, double> scores = new();
+
+            foreach (var existingUser in users)
+            {
+                if (existingUser.UserID == newUser.UserID) continue;
+
+                double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
+                double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age));
+                double compatibilityScore = similarity * agePenalty;
+
+                scores[existingUser.UserID] = compatibilityScore;
+
+                // Store in existing user entry as well
+                if (CompatibilityStore.CompatibilityScores.TryGetValue(existingUser.UserID, out var existingScores))
+                {
+                    existingScores[newUser.UserID] = compatibilityScore;
+                }
+                else
+                {
+                    CompatibilityStore.CompatibilityScores[existingUser.UserID] = new Dictionary<int, double> { { newUser.UserID, compatibilityScore } };
+                }
+            }
+
+            CompatibilityStore.CompatibilityScores[newUser.UserID] = scores;
+
+            // LOG COMPATIBILITY SCORES FOR DEBUGGING
+            Console.WriteLine($"Stored Compatibility Scores for User {newUser.UserID}:");
+            foreach (var kvp in scores)
+            {
+                Console.WriteLine($" - With User {kvp.Key}: {kvp.Value:F4}");
+            }
+        }
+
+        
+
+
+        private double CalculateJaccardSimilarity(string interests1, string interests2)
+        {
+            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries));
+            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries));
+
+            int intersection = set1.Intersect(set2).Count();
+            int union = set1.Union(set2).Count();
+
+            return union == 0 ? 0 : (double)intersection / union;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         // GET: Users/Edit/5
