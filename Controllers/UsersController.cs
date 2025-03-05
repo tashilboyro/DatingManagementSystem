@@ -15,10 +15,15 @@ namespace Lovebirds.Controllers
     {
         private readonly ApplicationDbContext _context;
 
-        public UsersController(ApplicationDbContext context)
+        private readonly ILogger<UsersController> _logger;
+        public UsersController(ApplicationDbContext context, ILogger<UsersController> logger)
         {
             _context = context;
+            _logger = logger;
         }
+
+
+
 
         // GET: Users
         public async Task<IActionResult> Index()
@@ -104,12 +109,12 @@ namespace Lovebirds.Controllers
                 Console.WriteLine("Adding user to DB...");
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
+                _context.Entry(user).Reload();
+                _logger.LogInformation($"User saved successfully with ID: {user.UserID}");
+
 
                 // Compute compatibility score
-                ComputeCompatibility(user);
-
-
-                Console.WriteLine("User saved successfully!");
+                ComputeCompatibility(user); 
 
                 return RedirectToAction(nameof(Index));
             }
@@ -121,43 +126,75 @@ namespace Lovebirds.Controllers
             }
         }
 
+        [HttpGet]
+        public IActionResult GetCompatibilityScores()
+        {
+            return Json(CompatibilityStore.CompatibilityScores);
+        }
+
+
         private void ComputeCompatibility(User newUser)
         {
             var users = _context.Users.ToList();
-            Dictionary<int, double> scores = new();
+            _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
+
+            if (!users.Any())
+            {
+                _logger.LogWarning("No existing users found. Skipping computation.");
+                return;
+            }
+
+            // Dictionary to store computed scores for the new user
+            var scores = new Dictionary<int, double>();
 
             foreach (var existingUser in users)
             {
                 if (existingUser.UserID == newUser.UserID) continue;
 
                 double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age));
+                double agePenalty = 1.0 / (1 + Math.Abs(newUser.Age - existingUser.Age));
                 double compatibilityScore = similarity * agePenalty;
 
                 scores[existingUser.UserID] = compatibilityScore;
 
-                // Store in existing user entry as well
-                if (CompatibilityStore.CompatibilityScores.TryGetValue(existingUser.UserID, out var existingScores))
-                {
-                    existingScores[newUser.UserID] = compatibilityScore;
-                }
-                else
-                {
-                    CompatibilityStore.CompatibilityScores[existingUser.UserID] = new Dictionary<int, double> { { newUser.UserID, compatibilityScore } };
-                }
+                // Store score for existing user
+                CompatibilityStore.CompatibilityScores.AddOrUpdate(
+                    existingUser.UserID,
+                    new Dictionary<int, double> { { newUser.UserID, compatibilityScore } },
+                    (key, existingDict) =>
+                    {
+                        existingDict[newUser.UserID] = compatibilityScore;
+                        return existingDict;
+                    }
+                );
             }
 
+            // Store computed scores for the new user
             CompatibilityStore.CompatibilityScores[newUser.UserID] = scores;
 
-            // LOG COMPATIBILITY SCORES FOR DEBUGGING
-            Console.WriteLine($"Stored Compatibility Scores for User {newUser.UserID}:");
+            // **LOGGING TO CONFIRM COMPUTATION SUCCESS**
+            _logger.LogInformation($"Stored Compatibility Scores for User {newUser.UserID}:");
+
             foreach (var kvp in scores)
             {
-                Console.WriteLine($" - With User {kvp.Key}: {kvp.Value:F4}");
+                _logger.LogInformation($" - With User {kvp.Key}: {kvp.Value:F4}");
+            }
+
+            _logger.LogInformation("Current State of CompatibilityStore:");
+            foreach (var userEntry in CompatibilityStore.CompatibilityScores)
+            {
+                _logger.LogInformation($"User {userEntry.Key} Compatibility Scores:");
+                foreach (var score in userEntry.Value)
+                {
+                    _logger.LogInformation($" - With User {score.Key}: {score.Value:F4}");
+                }
             }
         }
 
-        
+
+
+
+
 
 
         private double CalculateJaccardSimilarity(string interests1, string interests2)

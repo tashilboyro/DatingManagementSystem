@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add logging services
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(); // Ensure Console logging is enabled
+builder.Logging.SetMinimumLevel(LogLevel.Debug); // Ensures Debug logs are captured
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
@@ -27,7 +32,7 @@ app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
+    pattern: "{controller=Users}/{action=Index}/{id?}")
     .WithStaticAssets();
 
 
