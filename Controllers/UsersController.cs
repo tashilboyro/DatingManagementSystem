@@ -126,11 +126,15 @@ namespace Lovebirds.Controllers
             }
         }
 
+   
         [HttpGet]
         public IActionResult GetCompatibilityScores()
         {
-            return Json(CompatibilityStore.CompatibilityScores);
+            var scores = _context.CompatibilityScores.ToList();
+            return Json(scores);
         }
+
+
 
 
         private void ComputeCompatibility(User newUser)
@@ -138,57 +142,42 @@ namespace Lovebirds.Controllers
             var users = _context.Users.ToList();
             _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
 
-            if (!users.Any())
+            if (users.Count == 0)
             {
-                _logger.LogWarning("No existing users found. Skipping computation.");
+                _logger.LogInformation("No existing users found. Skipping computation.");
                 return;
             }
-
-            // Dictionary to store computed scores for the new user
-            var scores = new Dictionary<int, double>();
 
             foreach (var existingUser in users)
             {
                 if (existingUser.UserID == newUser.UserID) continue;
 
                 double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                double agePenalty = 1.0 / (1 + Math.Abs(newUser.Age - existingUser.Age));
+                double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age));
                 double compatibilityScore = similarity * agePenalty;
 
-                scores[existingUser.UserID] = compatibilityScore;
+                // Store in DB
+                var existingEntry = _context.CompatibilityScores
+                    .FirstOrDefault(cs => (cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID) ||
+                                          (cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID));
 
-                // Store score for existing user
-                CompatibilityStore.CompatibilityScores.AddOrUpdate(
-                    existingUser.UserID,
-                    new Dictionary<int, double> { { newUser.UserID, compatibilityScore } },
-                    (key, existingDict) =>
-                    {
-                        existingDict[newUser.UserID] = compatibilityScore;
-                        return existingDict;
-                    }
-                );
-            }
-
-            // Store computed scores for the new user
-            CompatibilityStore.CompatibilityScores[newUser.UserID] = scores;
-
-            // **LOGGING TO CONFIRM COMPUTATION SUCCESS**
-            _logger.LogInformation($"Stored Compatibility Scores for User {newUser.UserID}:");
-
-            foreach (var kvp in scores)
-            {
-                _logger.LogInformation($" - With User {kvp.Key}: {kvp.Value:F4}");
-            }
-
-            _logger.LogInformation("Current State of CompatibilityStore:");
-            foreach (var userEntry in CompatibilityStore.CompatibilityScores)
-            {
-                _logger.LogInformation($"User {userEntry.Key} Compatibility Scores:");
-                foreach (var score in userEntry.Value)
+                if (existingEntry == null)
                 {
-                    _logger.LogInformation($" - With User {score.Key}: {score.Value:F4}");
+                    _context.CompatibilityScores.Add(new CompatibilityScore
+                    {
+                        User1Id = newUser.UserID,
+                        User2Id = existingUser.UserID,
+                        Score = compatibilityScore
+                    });
+                }
+                else
+                {
+                    existingEntry.Score = compatibilityScore;
+                    _context.CompatibilityScores.Update(existingEntry);
                 }
             }
+
+            _context.SaveChanges();
         }
 
 
