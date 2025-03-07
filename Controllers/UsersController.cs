@@ -137,7 +137,7 @@ namespace Lovebirds.Controllers
 
 
 
-        private void ComputeCompatibility(User newUser)
+        private void  ComputeCompatibility(User newUser)
         {
             var users = _context.Users.ToList();
             _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
@@ -177,7 +177,8 @@ namespace Lovebirds.Controllers
                 }
             }
 
-            _context.SaveChanges();
+       
+            _context.SaveChangesAsync();
         }
 
 
@@ -188,6 +189,11 @@ namespace Lovebirds.Controllers
 
         private double CalculateJaccardSimilarity(string interests1, string interests2)
         {
+            if (string.IsNullOrWhiteSpace(interests1) || string.IsNullOrWhiteSpace(interests2))
+            {
+                return 0; // No similarity if either is empty
+            }
+
             var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries));
             var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries));
 
@@ -196,29 +202,6 @@ namespace Lovebirds.Controllers
 
             return union == 0 ? 0 : (double)intersection / union;
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
