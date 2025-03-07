@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
 using System.Collections.Concurrent;
+using System.Collections;
+
 
 namespace Lovebirds.Controllers
 {
@@ -58,20 +60,20 @@ namespace Lovebirds.Controllers
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
                 .ToListAsync();  // Use ToListAsync instead of ToList
 
-            // Creating a dictionary to store the compatibility scores
-            var compatibilityScoresDictionary = new Dictionary<int, double>();
+            // Creating a Hashtable to store the compatibility scores
+            Hashtable compatibilityScoresHashtable = new Hashtable();
 
             foreach (var score in compatibilityScores)
             {
                 // Determine the paired user's ID
                 int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
 
-                // Add the compatibility score to the dictionary
-                compatibilityScoresDictionary[pairedUserId] = score.Score;
+                // Add the compatibility score to the Hashtable
+                compatibilityScoresHashtable[pairedUserId] = score.Score;
             }
 
             // Return the compatibility scores as JSON
-            return Json(compatibilityScoresDictionary);
+            return Json(compatibilityScoresHashtable);
         }
 
 
