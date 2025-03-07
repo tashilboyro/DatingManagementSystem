@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -114,7 +114,7 @@ namespace Lovebirds.Controllers
 
 
                 // Compute compatibility score
-                ComputeCompatibility(user); 
+                ComputeCompatibility(user);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -126,7 +126,7 @@ namespace Lovebirds.Controllers
             }
         }
 
-   
+
         [HttpGet]
         public IActionResult GetCompatibilityScores()
         {
@@ -137,7 +137,7 @@ namespace Lovebirds.Controllers
 
 
 
-        private void  ComputeCompatibility(User newUser)
+        private void ComputeCompatibility(User newUser)
         {
             var users = _context.Users.ToList();
             _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
@@ -153,10 +153,12 @@ namespace Lovebirds.Controllers
                 if (existingUser.UserID == newUser.UserID) continue;
 
                 double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age));
+                // Age penalty where a 10-year difference results in a penalty of 0.5 (moderated for smoother scoring)
+                double agePenalty = 1 / (1 + (Math.Abs(newUser.Age - existingUser.Age) / 10.0));
                 double compatibilityScore = similarity * agePenalty;
 
-                // Store in DB
+                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Similarity = {similarity}, AgePenalty = {agePenalty}, Final Score = {compatibilityScore}");
+
                 var existingEntry = _context.CompatibilityScores
                     .FirstOrDefault(cs => (cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID) ||
                                           (cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID));
@@ -169,6 +171,13 @@ namespace Lovebirds.Controllers
                         User2Id = existingUser.UserID,
                         Score = compatibilityScore
                     });
+
+                    _context.CompatibilityScores.Add(new CompatibilityScore
+                    {
+                        User1Id = existingUser.UserID,
+                        User2Id = newUser.UserID,
+                        Score = compatibilityScore
+                    });
                 }
                 else
                 {
@@ -177,14 +186,8 @@ namespace Lovebirds.Controllers
                 }
             }
 
-       
-            _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
-
-
-
-
-
 
 
         private double CalculateJaccardSimilarity(string interests1, string interests2)
@@ -194,14 +197,20 @@ namespace Lovebirds.Controllers
                 return 0; // No similarity if either is empty
             }
 
-            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries));
-            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries));
+            // Normalize by trimming and converting to lowercase
+            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
+            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
 
-            int intersection = set1.Intersect(set2).Count();
-            int union = set1.Union(set2).Count();
+            int intersection = set1.Intersect(set2).Count(); // Common interests
+            int union = set1.Union(set2).Count(); // All unique interests
 
+            // Return Jaccard similarity: intersection / union
             return union == 0 ? 0 : (double)intersection / union;
         }
+
+
 
 
 
