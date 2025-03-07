@@ -31,6 +31,50 @@ namespace Lovebirds.Controllers
             return View(await _context.Users.ToListAsync());
         }
 
+        // Hardcode logged-in user (UserID = 15)
+        private User? GetLoggedInUser()
+        {
+            var loggedInUser = _context.Users.FirstOrDefault(u => u.UserID == 15);
+
+            if (loggedInUser == null)
+            {
+                _logger.LogWarning("Logged-in user with ID 15 not found.");
+                return null;  // Or handle the case appropriately (throw exception, return a specific error, etc.)
+            }
+
+            return loggedInUser;
+        }
+
+
+        // Endpoint to test if the hashtable is working correctly
+        [HttpGet]
+        public async Task<IActionResult> GetCompatibilityScoresForLoggedInUser()
+        {
+            // Hardcoding logged-in user ID as 15
+            int loggedInUserId = 15;
+
+            // Retrieve the compatibility scores for the logged-in user asynchronously
+            var compatibilityScores = await _context.CompatibilityScores
+                .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
+                .ToListAsync();  // Use ToListAsync instead of ToList
+
+            // Creating a dictionary to store the compatibility scores
+            var compatibilityScoresDictionary = new Dictionary<int, double>();
+
+            foreach (var score in compatibilityScores)
+            {
+                // Determine the paired user's ID
+                int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
+
+                // Add the compatibility score to the dictionary
+                compatibilityScoresDictionary[pairedUserId] = score.Score;
+            }
+
+            // Return the compatibility scores as JSON
+            return Json(compatibilityScoresDictionary);
+        }
+
+
         public IActionResult GetProfilePicture(int id)
         {
             var user = _context.Users.Find(id);
