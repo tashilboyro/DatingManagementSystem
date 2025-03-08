@@ -11,7 +11,7 @@ using System.Collections.Concurrent;
 using System.Collections;
 
 
-namespace Lovebirds.Controllers
+namespace DatingManagementSystem.Models
 {
     public class UsersController : Controller
     {
@@ -50,31 +50,48 @@ namespace Lovebirds.Controllers
 
         // Endpoint to test if the hashtable is working correctly
         [HttpGet]
-        public async Task<IActionResult> GetCompatibilityScoresForLoggedInUser()
+        public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
-            // Hardcoding logged-in user ID as 15
-            int loggedInUserId = 15;
+            int loggedInUserId = 15; // Hardcoded logged-in user ID
 
-            // Retrieve the compatibility scores for the logged-in user asynchronously
+            // Retrieve compatibility scores for the logged-in user
             var compatibilityScores = await _context.CompatibilityScores
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
-                .ToListAsync();  // Use ToListAsync instead of ToList
+                .ToListAsync();
 
-            // Creating a Hashtable to store the compatibility scores
+            // Hashtable to store compatibility scores
             Hashtable compatibilityScoresHashtable = new Hashtable();
-
             foreach (var score in compatibilityScores)
             {
-                // Determine the paired user's ID
-                int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
-
-                // Add the compatibility score to the Hashtable
+                int pairedUserId = (score.User1Id == loggedInUserId) ? score.User2Id : score.User1Id;
                 compatibilityScoresHashtable[pairedUserId] = score.Score;
             }
 
-            // Return the compatibility scores as JSON
-            return Json(compatibilityScoresHashtable);
+            // Max heap using a SortedSet (to maintain descending order of compatibility scores)
+            SortedSet<(double, int)> maxHeap = new SortedSet<(double, int)>(
+                Comparer<(double, int)>.Create((a, b) => b.Item1.CompareTo(a.Item1) != 0 ? b.Item1.CompareTo(a.Item1) : a.Item2.CompareTo(b.Item2))
+            );
+
+            // Populate the max heap
+            foreach (DictionaryEntry entry in compatibilityScoresHashtable)
+            {
+                int userId = (int)entry.Key;
+                double score = entry.Value as double? ?? 0.0; // Safe unboxing
+
+                maxHeap.Add((score, userId));
+            }
+
+
+            // Convert sorted results to a list
+            var sortedResults = maxHeap.Select(entry => new
+            {
+                UserId = entry.Item2,             // Second element of tuple (userId)
+                CompatibilityScore = entry.Item1  // First element of tuple (score)
+            }).ToList();
+
+            return Json(sortedResults);
         }
+
 
 
         public IActionResult GetProfilePicture(int id)
