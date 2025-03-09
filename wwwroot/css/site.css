@@ -18,6 +18,7 @@ html {
 }
 
 body {
+  background: #E6E6FA;
   margin-bottom: 60px;
 }
 
@@ -29,3 +30,30 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+.navbar {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px; 
+}
+
+    .navbar h4 {
+        margin-right: 20px;
+    }
+
+    .navbar ul {
+        list-style: none;
+        display: flex;
+        gap: 15px;
+        margin: 0;
+        padding: 0;
+    }
+
+    .navbar a {
+        font-size: 20px;
+        text-decoration: none;
+        color: black;
+    }
+    .navbar i{
+        color: black;
+    }
