@@ -50,6 +50,7 @@ namespace DatingManagementSystem.Models
 
         // Endpoint to test if the hashtable is working correctly
         [HttpGet]
+       
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
             int loggedInUserId = 15; // Hardcoded logged-in user ID
@@ -72,15 +73,17 @@ namespace DatingManagementSystem.Models
                 Comparer<(double, int)>.Create((a, b) => b.Item1.CompareTo(a.Item1) != 0 ? b.Item1.CompareTo(a.Item1) : a.Item2.CompareTo(b.Item2))
             );
 
-            // Populate the max heap
+            // Populate the max heap, excluding scores of 0
             foreach (DictionaryEntry entry in compatibilityScoresHashtable)
             {
                 int userId = (int)entry.Key;
                 double score = entry.Value as double? ?? 0.0; // Safe unboxing
 
-                maxHeap.Add((score, userId));
+                if (score > 0) // ✅ Exclude users with score 0
+                {
+                    maxHeap.Add((score, userId));
+                }
             }
-
 
             // Convert sorted results to a list
             var sortedResults = maxHeap.Select(entry => new
