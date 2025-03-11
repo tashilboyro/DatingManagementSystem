@@ -18,6 +18,7 @@ namespace DatingManagementSystem.Models
         private readonly ApplicationDbContext _context;
 
         private readonly ILogger<UsersController> _logger;
+
         public UsersController(ApplicationDbContext context, ILogger<UsersController> logger)
         {
             _context = context;
