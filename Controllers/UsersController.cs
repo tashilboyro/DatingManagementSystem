@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,23 +7,105 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
+using System.Collections.Concurrent;
+using System.Collections;
 
-namespace Lovebirds.Controllers
+
+namespace DatingManagementSystem.Models
 {
     public class UsersController : Controller
     {
         private readonly ApplicationDbContext _context;
 
-        public UsersController(ApplicationDbContext context)
+        private readonly ILogger<UsersController> _logger;
+
+        public UsersController(ApplicationDbContext context, ILogger<UsersController> logger)
         {
             _context = context;
+            _logger = logger;
         }
+
+
+
 
         // GET: Users
         public async Task<IActionResult> Index()
         {
             return View(await _context.Users.ToListAsync());
         }
+
+        // Hardcode logged-in user (UserID = 15)
+        private User? GetLoggedInUser()
+        {
+            var loggedInUser = _context.Users.FirstOrDefault(u => u.UserID == 15);
+
+            if (loggedInUser == null)
+            {
+                _logger.LogWarning("Logged-in user with ID 15 not found.");
+                return null;  // Or handle the case appropriately (throw exception, return a specific error, etc.)
+            }
+
+            return loggedInUser;
+        }
+
+
+        // Endpoint to test if the hashtable is working correctly
+        [HttpGet]
+
+        public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
+        {
+            int loggedInUserId = 15;
+
+            var compatibilityScores = await _context.CompatibilityScores
+                .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
+                .ToListAsync();
+
+            // Hashtable to store compatibility scores
+            Hashtable compatibilityScoresHashtable = new Hashtable();
+            foreach (var score in compatibilityScores)
+            {
+                int pairedUserId = (score.User1Id == loggedInUserId) ? score.User2Id : score.User1Id;
+                compatibilityScoresHashtable[pairedUserId] = score.Score;
+            }
+
+            // Bucket Sort Implementation
+            int bucketSize = 10; // Change based on distribution
+
+
+            Dictionary<int, List<int>> buckets = new Dictionary<int, List<int>>();
+
+            foreach (DictionaryEntry entry in compatibilityScoresHashtable)
+            {
+                int userId = (int)entry.Key;
+                double score = entry.Value as double? ?? 0.0;
+
+                if (score > 0)
+                {
+                    int bucketIndex = (int)(score * bucketSize); // Normalize score into bucket index
+                    if (!buckets.ContainsKey(bucketIndex))
+                        buckets[bucketIndex] = new List<int>();
+
+                    buckets[bucketIndex].Add(userId);
+                }
+            }
+
+            // Sort results by descending bucket order
+            List<object> sortedResults = new List<object>();
+            foreach (var bucket in buckets.OrderByDescending(b => b.Key))
+            {
+                foreach (var userId in bucket.Value)
+                {
+                    sortedResults.Add(new { UserId = userId, CompatibilityScore = compatibilityScoresHashtable[userId] });
+                }
+            }
+
+            return Json(sortedResults);
+        }
+
+
+
+
+
 
         public IActionResult GetProfilePicture(int id)
         {
@@ -63,6 +145,11 @@ namespace Lovebirds.Controllers
             return View();
         }
 
+        public static class CompatibilityStore
+        {
+            public static ConcurrentDictionary<int, Dictionary<int, double>> CompatibilityScores = new();
+        }
+
         // POST: Users/Create
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
@@ -98,7 +185,12 @@ namespace Lovebirds.Controllers
                 Console.WriteLine("Adding user to DB...");
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
-                Console.WriteLine("User saved successfully!");
+                _context.Entry(user).Reload();
+                _logger.LogInformation($"User saved successfully with ID: {user.UserID}");
+
+
+                // Compute compatibility score
+                ComputeCompatibility(user);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -109,6 +201,95 @@ namespace Lovebirds.Controllers
                 return View(user);
             }
         }
+
+
+        [HttpGet]
+        public IActionResult GetCompatibilityScores()
+        {
+            var scores = _context.CompatibilityScores.ToList();
+            return Json(scores);
+        }
+
+
+
+
+        private void ComputeCompatibility(User newUser)
+        {
+            var users = _context.Users.ToList();
+            _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
+
+            if (users.Count == 0)
+            {
+                _logger.LogInformation("No existing users found. Skipping computation.");
+                return;
+            }
+
+            foreach (var existingUser in users)
+            {
+                if (existingUser.UserID == newUser.UserID) continue;
+
+                double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
+                // Age penalty where a 10-year difference results in a penalty of 0.5 (moderated for smoother scoring)
+                double agePenalty = 1 / (1 + (Math.Abs(newUser.Age - existingUser.Age) / 10.0));
+                double compatibilityScore = similarity * agePenalty;
+
+                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Similarity = {similarity}, AgePenalty = {agePenalty}, Final Score = {compatibilityScore}");
+
+                var existingEntry = _context.CompatibilityScores
+                    .FirstOrDefault(cs => (cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID) ||
+                                          (cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID));
+
+                if (existingEntry == null)
+                {
+                    _context.CompatibilityScores.Add(new CompatibilityScore
+                    {
+                        User1Id = newUser.UserID,
+                        User2Id = existingUser.UserID,
+                        Score = compatibilityScore
+                    });
+
+                    _context.CompatibilityScores.Add(new CompatibilityScore
+                    {
+                        User1Id = existingUser.UserID,
+                        User2Id = newUser.UserID,
+                        Score = compatibilityScore
+                    });
+                }
+                else
+                {
+                    existingEntry.Score = compatibilityScore;
+                    _context.CompatibilityScores.Update(existingEntry);
+                }
+            }
+
+            _context.SaveChanges();
+        }
+
+
+        private double CalculateJaccardSimilarity(string interests1, string interests2)
+        {
+            if (string.IsNullOrWhiteSpace(interests1) || string.IsNullOrWhiteSpace(interests2))
+            {
+                return 0; // No similarity if either is empty
+            }
+
+            // Normalize by trimming and converting to lowercase
+            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
+            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
+
+            int intersection = set1.Intersect(set2).Count(); // Common interests
+            int union = set1.Union(set2).Count(); // All unique interests
+
+            // Return Jaccard similarity: intersection / union
+            return union == 0 ? 0 : (double)intersection / union;
+        }
+
+
+
+
+
 
 
         // GET: Users/Edit/5
