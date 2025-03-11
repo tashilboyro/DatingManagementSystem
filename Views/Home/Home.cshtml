@@ -1,0 +1,7 @@
+﻿@{
+    var userName = Context.Session.GetString("UserName");
+    var userEmail = Context.Session.GetString("UserEmail");
+}
+
+<h2>Welcome, @userName!</h2>
+<p>Email: @userEmail</p>
