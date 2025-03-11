@@ -50,17 +50,17 @@ namespace DatingManagementSystem.Models
 
         // Endpoint to test if the hashtable is working correctly
         [HttpGet]
-       
+
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
-            int loggedInUserId = 15; // Hardcoded logged-in user ID
+            int loggedInUserId = 15;
 
-            // Retrieve compatibility scores for the logged-in user
             var compatibilityScores = await _context.CompatibilityScores
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
                 .ToListAsync();
 
-            // Hashtable to store compatibility scores
+            //used a hashtable to store compatibility scores with paired users
+
             Hashtable compatibilityScoresHashtable = new Hashtable();
             foreach (var score in compatibilityScores)
             {
@@ -68,36 +68,39 @@ namespace DatingManagementSystem.Models
                 compatibilityScoresHashtable[pairedUserId] = score.Score;
             }
 
-            // Max heap using a SortedSet (to maintain descending order of compatibility scores)
-            SortedSet<(double, int)> maxHeap = new SortedSet<(double, int)>(
-                Comparer<(double, int)>.Create((a, b) => b.Item1.CompareTo(a.Item1) != 0 ? b.Item1.CompareTo(a.Item1) : a.Item2.CompareTo(b.Item2))
-            );
+            //priority queue for faster insertion and removal in heaps
+            //custom comparer used to put scores in a descending order
 
-            // Populate the max heap, excluding scores of 0
+            PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
+
             foreach (DictionaryEntry entry in compatibilityScoresHashtable)
             {
                 int userId = (int)entry.Key;
-                double score = entry.Value as double? ?? 0.0; // Safe unboxing
-
-                if (score > 0) // ✅ Exclude users with score 0
+                double score = entry.Value as double? ?? 0.0;
+                if (score > 0)
                 {
-                    maxHeap.Add((score, userId));
+                    maxHeap.Enqueue(userId, score);
                 }
             }
 
-            // Convert sorted results to a list
-            var sortedResults = maxHeap.Select(entry => new
+            //TryDequeue to extract and store results in the final list
+
+            List<object> sortedResults = new List<object>();
+            while (maxHeap.Count > 0)
             {
-                UserId = entry.Item2,             // Second element of tuple (userId)
-                CompatibilityScore = entry.Item1  // First element of tuple (score)
-            }).ToList();
+                maxHeap.TryDequeue(out int userId, out double score);
+                sortedResults.Add(new { UserId = userId, CompatibilityScore = score });
+            }
 
             return Json(sortedResults);
         }
+    
 
 
 
-        public IActionResult GetProfilePicture(int id)
+
+
+public IActionResult GetProfilePicture(int id)
         {
             var user = _context.Users.Find(id);
             if (user == null || user.ProfilePicture == null || user.ProfilePicture.Length == 0)
