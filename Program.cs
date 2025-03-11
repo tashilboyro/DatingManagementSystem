@@ -1,4 +1,3 @@
-
 using DatingManagementSystem.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -19,12 +18,9 @@ builder.Services.AddHttpContextAccessor(); // Allows access to HttpContext in co
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// Configure Database Context with retry logic for transient errors
+// Configure Database Context
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure()) // Enable retry on transient failures
-);
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -60,4 +56,5 @@ app.MapControllerRoute(
 
 
 app.Run();
+
 
