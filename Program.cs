@@ -11,9 +11,12 @@ builder.Logging.SetMinimumLevel(LogLevel.Debug); // Ensures Debug logs are captu
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// Configure Database Context
+// Configure Database Context with retry logic for transient errors
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure()) // Enable retry on transient failures
+);
 
 var app = builder.Build();
 
