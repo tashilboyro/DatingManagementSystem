@@ -59,8 +59,7 @@ namespace DatingManagementSystem.Models
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
                 .ToListAsync();
 
-            //used a hashtable to store compatibility scores with paired users
-
+            // Hashtable to store compatibility scores
             Hashtable compatibilityScoresHashtable = new Hashtable();
             foreach (var score in compatibilityScores)
             {
@@ -68,39 +67,46 @@ namespace DatingManagementSystem.Models
                 compatibilityScoresHashtable[pairedUserId] = score.Score;
             }
 
-            //priority queue for faster insertion and removal in heaps
-            //custom comparer used to put scores in a descending order
+            // Bucket Sort Implementation
+            int bucketSize = 10; // Change based on distribution
+            
 
-            PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
+            Dictionary<int, List<int>> buckets = new Dictionary<int, List<int>>();
 
             foreach (DictionaryEntry entry in compatibilityScoresHashtable)
             {
                 int userId = (int)entry.Key;
                 double score = entry.Value as double? ?? 0.0;
+
                 if (score > 0)
                 {
-                    maxHeap.Enqueue(userId, score);
+                    int bucketIndex = (int)(score * bucketSize); // Normalize score into bucket index
+                    if (!buckets.ContainsKey(bucketIndex))
+                        buckets[bucketIndex] = new List<int>();
+
+                    buckets[bucketIndex].Add(userId);
                 }
             }
 
-            //TryDequeue to extract and store results in the final list
-
+            // Sort results by descending bucket order
             List<object> sortedResults = new List<object>();
-            while (maxHeap.Count > 0)
+            foreach (var bucket in buckets.OrderByDescending(b => b.Key))
             {
-                maxHeap.TryDequeue(out int userId, out double score);
-                sortedResults.Add(new { UserId = userId, CompatibilityScore = score });
+                foreach (var userId in bucket.Value)
+                {
+                    sortedResults.Add(new { UserId = userId, CompatibilityScore = compatibilityScoresHashtable[userId] });
+                }
             }
 
             return Json(sortedResults);
         }
-    
 
 
 
 
 
-public IActionResult GetProfilePicture(int id)
+
+        public IActionResult GetProfilePicture(int id)
         {
             var user = _context.Users.Find(id);
             if (user == null || user.ProfilePicture == null || user.ProfilePicture.Length == 0)
