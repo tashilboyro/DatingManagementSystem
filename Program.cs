@@ -1,4 +1,3 @@
-
 using DatingManagementSystem.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -52,9 +51,10 @@ app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Login}/{id?}")
+    pattern: "{controller=Users}/{action=Index}/{id?}")
     .WithStaticAssets();
 
 
 app.Run();
+
 
