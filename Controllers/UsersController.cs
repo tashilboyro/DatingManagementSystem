@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,23 +9,37 @@ using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
 using System.Collections.Concurrent;
 using System.Collections;
-
+using System.Security.Claims;
+using System.Diagnostics;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
 
 namespace Lovebirds.Controllers
 {
     public class UsersController : Controller
     {
         private readonly ApplicationDbContext _context;
-
         private readonly ILogger<UsersController> _logger;
-        public UsersController(ApplicationDbContext context, ILogger<UsersController> logger)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public UsersController(ILogger<UsersController> logger, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
         {
-            _context = context;
             _logger = logger;
+            _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
-
-
-
+        
+        
+        public IActionResult Login()
+        {
+            return View();
+        }
+        
+        // GET: Users/Create
+        public IActionResult Create()
+        {
+            return View();
+        }
+    
 
         // GET: Users
         public async Task<IActionResult> Index()
@@ -121,11 +135,7 @@ namespace Lovebirds.Controllers
             return View(user);
         }
 
-        // GET: Users/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
+       
 
         public static class CompatibilityStore
         {
@@ -190,6 +200,52 @@ namespace Lovebirds.Controllers
         {
             var scores = _context.CompatibilityScores.ToList();
             return Json(scores);
+        }
+        
+        //Login Functionality
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(LoginViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
+                if (user != null)
+                {
+                    // Authentication logic
+                    var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim("UserID", user.UserID.ToString()) // Store User ID
+            };
+
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties { IsPersistent = true };
+
+                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                                                  new ClaimsPrincipal(claimsIdentity),
+                                                  authProperties);
+
+                    // Store user details in session
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
+                    HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
+                    HttpContext.Session.SetString("UserEmail", user.Email);
+
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Invalid email or password.");
+                }
+            }
+            return View(model);
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
 
@@ -358,4 +414,5 @@ namespace Lovebirds.Controllers
             return _context.Users.Any(e => e.UserID == id);
         }
     }
+
 }
