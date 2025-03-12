@@ -6,6 +6,7 @@
 @{
 	var userName = Context.Session.GetString("UserName");
 	var userEmail = Context.Session.GetString("UserEmail");
+	var userID = Context.Session.GetString("UserID");
 }
 <div class="card shadow-lg p-4">
 	<div class="table-responsive">
@@ -61,8 +62,10 @@
 	// Store user details in Session Storage
 	sessionStorage.setItem("UserName", "@userName");
 	sessionStorage.setItem("UserEmail", "@userEmail");
+	sessionStorage.setItem("UserID", "@userID");
 
 	// Retrieve and log session storage data
 	console.log("User Name:", sessionStorage.getItem("UserName"));
 	console.log("User Email:", sessionStorage.getItem("UserEmail"));
+	console.log("User ID:", sessionStorage.getItem("UserID"));
 </script>
