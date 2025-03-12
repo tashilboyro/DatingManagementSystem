@@ -14,7 +14,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
 
-namespace Lovebirds.Controllers
+namespace DatingManagementSystem.Controllers
 {
     public class UsersController : Controller
     {
@@ -27,97 +27,27 @@ namespace Lovebirds.Controllers
             _context = context;
             _httpContextAccessor = httpContextAccessor;
         }
-        
-        
+
+        // IAction for Login
         public IActionResult Login()
         {
             return View();
         }
-        
-        // GET: Users/Create
+
+        // IAction for create
         public IActionResult Create()
         {
             return View();
         }
-    
 
-        // GET: Users
+
+        // IAction for Index
         public async Task<IActionResult> Index()
         {
             return View(await _context.Users.ToListAsync());
         }
 
-        // Hardcode logged-in user (UserID = 15)
-        private User? GetLoggedInUser()
-        {
-            var loggedInUser = _context.Users.FirstOrDefault(u => u.UserID == 15);
-
-            if (loggedInUser == null)
-            {
-                _logger.LogWarning("Logged-in user with ID 15 not found.");
-                return null;  // Or handle the case appropriately (throw exception, return a specific error, etc.)
-            }
-
-            return loggedInUser;
-        }
-
-
-        // Endpoint to test if the hashtable is working correctly
-        [HttpGet]
-
-        public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
-        {
-            int loggedInUserId = 1;
-
-            var compatibilityScores = await _context.CompatibilityScores
-                .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
-                .ToListAsync();
-
-            Hashtable compatibilityScoresHashtable = new Hashtable();
-            foreach (var score in compatibilityScores)
-            {
-                int pairedUserId = (score.User1Id == loggedInUserId) ? score.User2Id : score.User1Id;
-                compatibilityScoresHashtable[pairedUserId] = score.Score;
-            }
-
-            PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
-
-            foreach (DictionaryEntry entry in compatibilityScoresHashtable)
-            {
-                int userId = (int)entry.Key;
-                double score = entry.Value as double? ?? 0.0;
-                if (score > 0)
-                {
-                    maxHeap.Enqueue(userId, score);
-                }
-            }
-
-            List<object> sortedResults = new List<object>();
-            while (maxHeap.Count > 0)
-            {
-                maxHeap.TryDequeue(out int userId, out double score);
-                sortedResults.Add(new { UserId = userId, CompatibilityScore = score });
-            }
-
-            return Json(sortedResults);
-        }
-
-
-        public IActionResult GetProfilePicture(int id)
-        {
-            var user = _context.Users.Find(id);
-            if (user == null || user.ProfilePicture == null || user.ProfilePicture.Length == 0)
-            {
-                return NotFound(); // Or return a default image
-            }
-
-            return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
-        }
-
-
-
-
-        // GET: Users/Details/5
+        // IAction for details
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -135,16 +65,87 @@ namespace Lovebirds.Controllers
             return View(user);
         }
 
-       
 
-        public static class CompatibilityStore
+        // IAction for Delete
+        public async Task<IActionResult> Delete(int? id)
         {
-            public static ConcurrentDictionary<int, Dictionary<int, double>> CompatibilityScores = new();
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(m => m.UserID == id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return View(user);
         }
 
+        // IAction for delete function
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user != null)
+            {
+                _context.Users.Remove(user);
+            }
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
+        }
+
+        private bool UserExists(int id)
+        {
+            return _context.Users.Any(e => e.UserID == id);
+        }
+
+        // IAction for Compatibility score to test on Postman
+
+        [HttpGet]
+        public IActionResult GetCompatibilityScores()
+        {
+            var scores = _context.CompatibilityScores.ToList();
+            return Json(scores);
+        }
+
+        // IAction to get profile pic
+        public IActionResult GetProfilePicture(int id)
+        {
+            var user = _context.Users.Find(id);
+            if (user == null || user.ProfilePicture == null || user.ProfilePicture.Length == 0)
+            {
+                return NotFound(); // Or return a default image
+            }
+
+            return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
+        }
+
+
+
+        // Hardcode logged-in user (UserID = 15)
+        private User? GetLoggedInUser()
+        {
+            var loggedInUser = _context.Users.FirstOrDefault(u => u.UserID == 15);
+
+            if (loggedInUser == null)
+            {
+                _logger.LogWarning("Logged-in user with ID 15 not found.");
+                return null;  // Or handle the case appropriately (throw exception, return a specific error, etc.)
+            }
+
+            return loggedInUser;
+        }
+
+
+
         // POST: Users/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
@@ -195,13 +196,8 @@ namespace Lovebirds.Controllers
         }
 
 
-        [HttpGet]
-        public IActionResult GetCompatibilityScores()
-        {
-            var scores = _context.CompatibilityScores.ToList();
-            return Json(scores);
-        }
-        
+
+
         //Login Functionality
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -250,10 +246,18 @@ namespace Lovebirds.Controllers
 
 
 
+        public static class CompatibilityStore
+        {
+            public static ConcurrentDictionary<int, Dictionary<int, double>> CompatibilityScores = new();
+        }
 
+        //Calculating Compatibility Score
         private void ComputeCompatibility(User newUser)
         {
+
+
             var users = _context.Users.ToList();
+
             _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
 
             if (users.Count == 0)
@@ -262,20 +266,24 @@ namespace Lovebirds.Controllers
                 return;
             }
 
+
             foreach (var existingUser in users)
             {
                 if (existingUser.UserID == newUser.UserID) continue;
 
                 double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
                 // Age penalty where a 10-year difference results in a penalty of 0.5 (moderated for smoother scoring)
-                double agePenalty = 1 / (1 + (Math.Abs(newUser.Age - existingUser.Age) / 10.0));
+                double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age) / 10.0);
                 double compatibilityScore = similarity * agePenalty;
+
+
+
 
                 _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Similarity = {similarity}, AgePenalty = {agePenalty}, Final Score = {compatibilityScore}");
 
                 var existingEntry = _context.CompatibilityScores
-                    .FirstOrDefault(cs => (cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID) ||
-                                          (cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID));
+                    .FirstOrDefault(cs => cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID ||
+                                          cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID);
 
                 if (existingEntry == null)
                 {
@@ -301,8 +309,11 @@ namespace Lovebirds.Controllers
             }
 
             _context.SaveChanges();
+
+
         }
 
+        //Calculating Jaccard Similarity
 
         private double CalculateJaccardSimilarity(string interests1, string interests2)
         {
@@ -325,94 +336,58 @@ namespace Lovebirds.Controllers
         }
 
 
-        // GET: Users/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+
+
+        // Endpoint to test if the hashtable is working correctly, Sort the Compatibility Scores
+
+        [HttpGet]
+
+        public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
-            if (id == null)
+            int loggedInUserId = 1;
+
+
+            var compatibilityScores = await _context.CompatibilityScores
+                .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
+                .ToListAsync();
+
+
+
+            Hashtable compatibilityScoresHashtable = new Hashtable();
+            foreach (var score in compatibilityScores)
             {
-                return NotFound();
+                int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
+                compatibilityScoresHashtable[pairedUserId] = score.Score;
             }
 
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-            return View(user);
-        }
 
-        // POST: Users/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("UserID,FirstName,LastName,Age,Gender,Email,Password,Interests,ProfilePicture,Bio,CreatedAt")] User user)
-        {
-            if (id != user.UserID)
-            {
-                return NotFound();
-            }
 
-            if (ModelState.IsValid)
+            PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
+
+            foreach (DictionaryEntry entry in compatibilityScoresHashtable)
             {
-                try
+                int userId = (int)entry.Key;
+                double score = entry.Value as double? ?? 0.0;
+                if (score > 0)
                 {
-                    _context.Update(user);
-                    await _context.SaveChangesAsync();
+                    maxHeap.Enqueue(userId, score);
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!UserExists(user.UserID))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            return View(user);
-        }
 
-        // GET: Users/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
+
+            }
+
+            List<object> sortedResults = new List<object>();
+            while (maxHeap.Count > 0)
             {
-                return NotFound();
+                maxHeap.TryDequeue(out int userId, out double score);
+                sortedResults.Add(new { UserId = userId, CompatibilityScore = score });
             }
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(m => m.UserID == id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return View(user);
+            return Json(sortedResults);
         }
 
-        // POST: Users/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user != null)
-            {
-                _context.Users.Remove(user);
-            }
 
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
 
-        private bool UserExists(int id)
-        {
-            return _context.Users.Any(e => e.UserID == id);
-        }
     }
 
 }
