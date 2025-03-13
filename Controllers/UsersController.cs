@@ -1,25 +1,36 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using System.Diagnostics;
 
-namespace Lovebirds.Controllers
+
+namespace DatingManagementSystem.Controllers
 {
     public class UsersController : Controller
     {
         private readonly ApplicationDbContext _context;
-
-        public UsersController(ApplicationDbContext context)
+        private readonly ILogger<UsersController> _logger;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public UsersController(ILogger<UsersController> logger, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
         {
+            _logger = logger;
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        // GET: Users
+        // View Functionality For Different Pages
+        public IActionResult Create()
+        {
+            return View();
+        }
+        public IActionResult Login()
+        {
+            return View();
+        }
         public async Task<IActionResult> Index()
         {
             return View(await _context.Users.ToListAsync());
@@ -35,8 +46,6 @@ namespace Lovebirds.Controllers
 
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
         }
-
-
 
 
         // GET: Users/Details/5
@@ -57,15 +66,7 @@ namespace Lovebirds.Controllers
             return View(user);
         }
 
-        // GET: Users/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: Users/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        //Register Functionality
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
@@ -100,7 +101,7 @@ namespace Lovebirds.Controllers
                 await _context.SaveChangesAsync();
                 Console.WriteLine("User saved successfully!");
 
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Login));
             }
             catch (Exception ex)
             {
@@ -110,6 +111,51 @@ namespace Lovebirds.Controllers
             }
         }
 
+        //Login Functionality
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(LoginViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
+                if (user != null)
+                {
+                    // Authentication logic
+                    var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim("UserID", user.UserID.ToString()) // Store User ID
+            };
+
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties { IsPersistent = true };
+
+                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                                                  new ClaimsPrincipal(claimsIdentity),
+                                                  authProperties);
+
+                    // Store user details in session
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
+                    HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
+                    HttpContext.Session.SetString("UserEmail", user.Email);
+
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Invalid email or password.");
+                }
+            }
+            return View(model);
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
 
         // GET: Users/Edit/5
         public async Task<IActionResult> Edit(int? id)
@@ -127,9 +173,6 @@ namespace Lovebirds.Controllers
             return View(user);
         }
 
-        // POST: Users/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("UserID,FirstName,LastName,Age,Gender,Email,Password,Interests,ProfilePicture,Bio,CreatedAt")] User user)
