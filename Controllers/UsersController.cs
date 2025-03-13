@@ -1,20 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
-using System.Collections.Concurrent;
-using System.Collections;
-using System.Security.Claims;
-using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using System.Diagnostics;
 
-namespace Lovebirds.Controllers
+
+namespace DatingManagementSystem.Controllers
 {
     public class UsersController : Controller
     {
@@ -27,81 +21,20 @@ namespace Lovebirds.Controllers
             _context = context;
             _httpContextAccessor = httpContextAccessor;
         }
-        
-        
-        public IActionResult Login()
-        {
-            return View();
-        }
-        
-        // GET: Users/Create
+
+        // View Functionality For Different Pages
         public IActionResult Create()
         {
             return View();
         }
-    
-
-        // GET: Users
+        public IActionResult Login()
+        {
+            return View();
+        }
         public async Task<IActionResult> Index()
         {
             return View(await _context.Users.ToListAsync());
         }
-
-        // Hardcode logged-in user (UserID = 15)
-        private User? GetLoggedInUser()
-        {
-            var loggedInUser = _context.Users.FirstOrDefault(u => u.UserID == 15);
-
-            if (loggedInUser == null)
-            {
-                _logger.LogWarning("Logged-in user with ID 15 not found.");
-                return null;  // Or handle the case appropriately (throw exception, return a specific error, etc.)
-            }
-
-            return loggedInUser;
-        }
-
-
-        // Endpoint to test if the hashtable is working correctly
-        [HttpGet]
-
-        public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
-        {
-            int loggedInUserId = 1;
-
-            var compatibilityScores = await _context.CompatibilityScores
-                .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
-                .ToListAsync();
-
-            Hashtable compatibilityScoresHashtable = new Hashtable();
-            foreach (var score in compatibilityScores)
-            {
-                int pairedUserId = (score.User1Id == loggedInUserId) ? score.User2Id : score.User1Id;
-                compatibilityScoresHashtable[pairedUserId] = score.Score;
-            }
-
-            PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
-
-            foreach (DictionaryEntry entry in compatibilityScoresHashtable)
-            {
-                int userId = (int)entry.Key;
-                double score = entry.Value as double? ?? 0.0;
-                if (score > 0)
-                {
-                    maxHeap.Enqueue(userId, score);
-                }
-            }
-
-            List<object> sortedResults = new List<object>();
-            while (maxHeap.Count > 0)
-            {
-                maxHeap.TryDequeue(out int userId, out double score);
-                sortedResults.Add(new { UserId = userId, CompatibilityScore = score });
-            }
-
-            return Json(sortedResults);
-        }
-
 
         public IActionResult GetProfilePicture(int id)
         {
@@ -113,8 +46,6 @@ namespace Lovebirds.Controllers
 
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
         }
-
-
 
 
         // GET: Users/Details/5
@@ -135,16 +66,7 @@ namespace Lovebirds.Controllers
             return View(user);
         }
 
-       
-
-        public static class CompatibilityStore
-        {
-            public static ConcurrentDictionary<int, Dictionary<int, double>> CompatibilityScores = new();
-        }
-
-        // POST: Users/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        //Register Functionality
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
@@ -177,14 +99,9 @@ namespace Lovebirds.Controllers
                 Console.WriteLine("Adding user to DB...");
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
-                _context.Entry(user).Reload();
-                _logger.LogInformation($"User saved successfully with ID: {user.UserID}");
+                Console.WriteLine("User saved successfully!");
 
-
-                // Compute compatibility score
-                ComputeCompatibility(user);
-
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Login));
             }
             catch (Exception ex)
             {
@@ -194,14 +111,6 @@ namespace Lovebirds.Controllers
             }
         }
 
-
-        [HttpGet]
-        public IActionResult GetCompatibilityScores()
-        {
-            var scores = _context.CompatibilityScores.ToList();
-            return Json(scores);
-        }
-        
         //Login Functionality
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -248,83 +157,6 @@ namespace Lovebirds.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-
-
-
-        private void ComputeCompatibility(User newUser)
-        {
-            var users = _context.Users.ToList();
-            _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
-
-            if (users.Count == 0)
-            {
-                _logger.LogInformation("No existing users found. Skipping computation.");
-                return;
-            }
-
-            foreach (var existingUser in users)
-            {
-                if (existingUser.UserID == newUser.UserID) continue;
-
-                double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                // Age penalty where a 10-year difference results in a penalty of 0.5 (moderated for smoother scoring)
-                double agePenalty = 1 / (1 + (Math.Abs(newUser.Age - existingUser.Age) / 10.0));
-                double compatibilityScore = similarity * agePenalty;
-
-                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Similarity = {similarity}, AgePenalty = {agePenalty}, Final Score = {compatibilityScore}");
-
-                var existingEntry = _context.CompatibilityScores
-                    .FirstOrDefault(cs => (cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID) ||
-                                          (cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID));
-
-                if (existingEntry == null)
-                {
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = newUser.UserID,
-                        User2Id = existingUser.UserID,
-                        Score = compatibilityScore
-                    });
-
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = existingUser.UserID,
-                        User2Id = newUser.UserID,
-                        Score = compatibilityScore
-                    });
-                }
-                else
-                {
-                    existingEntry.Score = compatibilityScore;
-                    _context.CompatibilityScores.Update(existingEntry);
-                }
-            }
-
-            _context.SaveChanges();
-        }
-
-
-        private double CalculateJaccardSimilarity(string interests1, string interests2)
-        {
-            if (string.IsNullOrWhiteSpace(interests1) || string.IsNullOrWhiteSpace(interests2))
-            {
-                return 0; // No similarity if either is empty
-            }
-
-            // Normalize by trimming and converting to lowercase
-            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                                       .Select(i => i.Trim().ToLower()));
-            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                                       .Select(i => i.Trim().ToLower()));
-
-            int intersection = set1.Intersect(set2).Count(); // Common interests
-            int union = set1.Union(set2).Count(); // All unique interests
-
-            // Return Jaccard similarity: intersection / union
-            return union == 0 ? 0 : (double)intersection / union;
-        }
-
-
         // GET: Users/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
@@ -341,9 +173,6 @@ namespace Lovebirds.Controllers
             return View(user);
         }
 
-        // POST: Users/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("UserID,FirstName,LastName,Age,Gender,Email,Password,Interests,ProfilePicture,Bio,CreatedAt")] User user)
@@ -414,5 +243,4 @@ namespace Lovebirds.Controllers
             return _context.Users.Any(e => e.UserID == id);
         }
     }
-
 }
