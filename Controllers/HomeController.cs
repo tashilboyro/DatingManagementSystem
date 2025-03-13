@@ -15,6 +15,7 @@ namespace DatingManagementSystem.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly ApplicationDbContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        
         public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _logger = logger;
@@ -31,7 +32,7 @@ namespace DatingManagementSystem.Controllers
         {
             return View();
         }
-        public IActionResult Profile()
+        public IActionResult Home()
         {
 
             return View();
@@ -98,9 +99,9 @@ namespace DatingManagementSystem.Controllers
                     // Authentication logic
                     var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim("UserID", user.UserID.ToString()) // Store User ID
+                    new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
+                    new Claim(ClaimTypes.Email, user.Email),
+                    new Claim("UserID", user.UserID.ToString()) // Store User ID
             };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -115,7 +116,7 @@ namespace DatingManagementSystem.Controllers
                     HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
                     HttpContext.Session.SetString("UserEmail", user.Email);
 
-                    return RedirectToAction(nameof(Profile));
+                    return RedirectToAction(nameof(Home));
                 }
                 else
                 {
