@@ -31,7 +31,7 @@ namespace DatingManagementSystem.Controllers
         {
             return View();
         }
-        public IActionResult Profile()
+        public IActionResult Home()
         {
 
             return View();
@@ -115,7 +115,7 @@ namespace DatingManagementSystem.Controllers
                     HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
                     HttpContext.Session.SetString("UserEmail", user.Email);
 
-                    return RedirectToAction(nameof(Profile));
+                    return RedirectToAction(nameof(Home));
                 }
                 else
                 {
