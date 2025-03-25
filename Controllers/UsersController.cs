@@ -125,22 +125,15 @@ namespace DatingManagementSystem.Controllers
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
         }
 
-
-
-        // Hardcode logged-in user (UserID = 15)
         private User? GetLoggedInUser()
         {
-            var loggedInUser = _context.Users.FirstOrDefault(u => u.UserID == 15);
-
-            if (loggedInUser == null)
+            var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst("UserID")?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
             {
-                _logger.LogWarning("Logged-in user with ID 15 not found.");
-                return null;  // Or handle the case appropriately (throw exception, return a specific error, etc.)
+                return _context.Users.FirstOrDefault(u => u.UserID == userId);
             }
-
-            return loggedInUser;
+            return null;
         }
-
 
 
         // POST: Users/Create
