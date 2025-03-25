@@ -39,6 +39,10 @@ namespace DatingManagementSystem.Controllers
         {
             return View();
         }
+        public IActionResult CompatibilityScores()
+        {
+            return View();
+        }
 
 
         // IAction for Index
@@ -48,7 +52,8 @@ namespace DatingManagementSystem.Controllers
         }
 
         // IAction for details
-        public async Task<IActionResult> Details(int? id)
+       
+        public async Task<IActionResult> GetUserDetails(int? id)
         {
             if (id == null)
             {
@@ -127,19 +132,7 @@ namespace DatingManagementSystem.Controllers
 
 
 
-        // Hardcode logged-in user (UserID = 15)
-        private User? GetLoggedInUser()
-        {
-            var loggedInUser = _context.Users.FirstOrDefault(u => u.UserID == 15);
-
-            if (loggedInUser == null)
-            {
-                _logger.LogWarning("Logged-in user with ID 15 not found.");
-                return null;  // Or handle the case appropriately (throw exception, return a specific error, etc.)
-            }
-
-            return loggedInUser;
-        }
+    
 
 
 
@@ -342,16 +335,14 @@ namespace DatingManagementSystem.Controllers
 
         [HttpGet]
 
+        // Backend code
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
-            int loggedInUserId = 1;
-
+            int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
 
             var compatibilityScores = await _context.CompatibilityScores
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
                 .ToListAsync();
-
-
 
             Hashtable compatibilityScoresHashtable = new Hashtable();
             foreach (var score in compatibilityScores)
@@ -359,8 +350,6 @@ namespace DatingManagementSystem.Controllers
                 int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
                 compatibilityScoresHashtable[pairedUserId] = score.Score;
             }
-
-
 
             PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
 
@@ -372,21 +361,46 @@ namespace DatingManagementSystem.Controllers
                 {
                     maxHeap.Enqueue(userId, score);
                 }
-
-
             }
 
-            List<object> sortedResults = new List<object>();
+            List<(int UserId, double Score)> sortedUsers = new List<(int UserId, double Score)>();
             while (maxHeap.Count > 0)
             {
                 maxHeap.TryDequeue(out int userId, out double score);
-                sortedResults.Add(new { UserId = userId, CompatibilityScore = score });
+                sortedUsers.Add((userId, score));
             }
+
+            var userIds = sortedUsers.Select(u => u.UserId).ToList();
+            var users = await _context.Users
+                .Where(u => userIds.Contains(u.UserID))
+                .Select(u => new
+                {
+                    u.UserID,
+                    u.FirstName,
+                    u.LastName,
+                    u.Age,
+                    u.Gender,
+                    u.Email,
+                    u.Interests,
+                    u.Bio,
+                    u.CreatedAt,
+                    ProfilePictureUrl = Url.Action("GetProfilePicture", "Users", new { id = u.UserID })
+                })
+                .ToListAsync();
+
+            var sortedResults = sortedUsers.Select(sortedUser =>
+            {
+                var user = users.FirstOrDefault(u => u.UserID == sortedUser.UserId);
+                return new
+                {
+                    UserId = user?.UserID,
+                    CompatibilityScore = sortedUser.Score,
+                    User = user
+                };
+            }).ToList();
 
             return Json(sortedResults);
         }
-
-
 
     }
 
