@@ -1,0 +1,18 @@
+﻿@{
+    var userName = Context.Session.GetString("UserName");
+    var userEmail = Context.Session.GetString("UserEmail");
+}
+
+<h2>Welcome, @userName!</h2>
+<p>Email: @userEmail</p>
+
+
+<script>
+    // Store user details in Session Storage
+    sessionStorage.setItem("UserName", "@userName");
+    sessionStorage.setItem("UserEmail", "@userEmail");
+
+    // Retrieve and log session storage data
+    console.log("User Name:", sessionStorage.getItem("UserName"));
+    console.log("User Email:", sessionStorage.getItem("UserEmail"));
+</script>
