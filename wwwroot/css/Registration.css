@@ -1,10 +1,10 @@
 ﻿body {
-    background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+    background: linear-gradient(135deg, #9933FF 0%, #FF6699 100%);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .container {
-    max-width: 700px;
+    max-width: 1000px;
 }
 
 .card {
@@ -16,7 +16,7 @@
 h4 {
     font-weight: bold;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 0px;
 }
 
 label {
@@ -114,7 +114,6 @@ textarea.form-control {
     display: inline-block;
 }
 
-/* Profile Picture Upload */
 input[type="file"] {
     background: #f9f9f9;
     padding: 10px 15px;
@@ -127,7 +126,6 @@ input[type="file"] {
         border-color: #ff758c;
     }
 
-/* Error messages */
 .text-danger {
     font-size: 0.85rem;
     margin-top: 5px;
