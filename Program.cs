@@ -51,10 +51,9 @@ app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
+
     pattern: "{controller=Users}/{action=Login}/{id?}")
     .WithStaticAssets();
 
 
 app.Run();
-
-
