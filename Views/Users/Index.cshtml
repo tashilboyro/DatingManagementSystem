@@ -1,15 +1,15 @@
 ﻿@model IEnumerable<DatingManagementSystem.Models.User>
 
 @{
-	ViewData["Title"] = "Users List";
+    ViewData["Title"] = "Users List";
 }
 @{
-	var userName = Context.Session.GetString("UserName");
-	var userEmail = Context.Session.GetString("UserEmail");
-	var userID = Context.Session.GetString("UserID");
+    var userName = Context.Session.GetString("UserName");
+    var userEmail = Context.Session.GetString("UserEmail");
+    var userID = Context.Session.GetString("UserID");
 }
 <div class="card shadow-lg p-4">
-	<div class="table-responsive">
+    <div class="table-responsive">
         <table class="table table-striped table-hover table-bordered align-middle">
             <thead class="table-dark text-center">
                 <tr>
@@ -30,21 +30,21 @@
             </tbody>
         </table>
 
-	</div>
+    </div>
 </div>
 
 <script>
-	// Store user details in Session Storage
-	sessionStorage.setItem("UserName", "@userName");
-	sessionStorage.setItem("UserEmail", "@userEmail");
-	sessionStorage.setItem("UserID", "@userID");
+    // Store user details in Session Storage
+    sessionStorage.setItem("UserName", "@userName");
+    sessionStorage.setItem("UserEmail", "@userEmail");
+    sessionStorage.setItem("UserID", "@userID");
 
-	// Retrieve and log session storage data
-	console.log("User Name:", sessionStorage.getItem("UserName"));
-	console.log("User Email:", sessionStorage.getItem("UserEmail"));
-	console.log("User ID:", sessionStorage.getItem("UserID"));
+    // Retrieve and log session storage data
+    console.log("User Name:", sessionStorage.getItem("UserName"));
+    console.log("User Email:", sessionStorage.getItem("UserEmail"));
+    console.log("User ID:", sessionStorage.getItem("UserID"));
 
-	 document.addEventListener("DOMContentLoaded", function () {
+     document.addEventListener("DOMContentLoaded", function () {
         console.log("DOM fully loaded and parsed, calling fetchCompatibilityScores");
         fetchCompatibilityScores();
     });
@@ -60,7 +60,7 @@
         const userId = sessionStorage.getItem("UserID");
 
         try {
-            const response = await fetch(`/Users/GetSortedCompatibilityScoresForLoggedInUser`);
+            const response = await fetch(/Users/GetSortedCompatibilityScoresForLoggedInUser);
             const result = await response.json();
 
             console.log("Fetched sorted scores:", result);
@@ -69,7 +69,7 @@
 
             for (let item of result) {
                 const user = item.user;
-               
+
 
                 if (user) {
                     const row = document.createElement('tr');
