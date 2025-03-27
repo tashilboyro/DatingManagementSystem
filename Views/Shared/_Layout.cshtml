@@ -13,26 +13,34 @@
 </head>
 <body>
     <header>
-        <nav class="navbar">
-            <h4>LoveBirds</h4>
-            <ul>
-                @if(User.Identity.IsAuthenticated){
-                    <li class="nav-item">
-                        <form asp-area="" asp-controller="Users" asp-action="Logout" method="post">
-                            <button type="submit" class="btn btn-link">Logout Button</button>
-                        </form>
-                    </li>
-                }
-                else{
-                    <li>
-                        <a asp-area="" asp-controller="Users" asp-action="Login">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a asp-area="" asp-controller="Users" asp-action="Create">Register</a>
-                    </li>
-                }
-            </ul>
-        </nav>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <div class="container">
+                <a class="navbar-brand" href="#">LoveBirds</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item">
+                                <form asp-area="" asp-controller="Users" asp-action="Logout" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-link nav-link">Logout</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Users" asp-action="Login">Login</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Users" asp-action="Create">Register</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
     </header>
 
     <div class="container mt-4">
