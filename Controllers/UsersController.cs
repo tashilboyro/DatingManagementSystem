@@ -1,3 +1,4 @@
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,14 +8,12 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
+using System.Collections.Concurrent;
+using System.Collections;
 using System.Security.Claims;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Http;
-using System.Collections;
-using System.Collections.Concurrent;
-using System.IO;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -23,7 +22,6 @@ namespace DatingManagementSystem.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ILogger<UsersController> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
-
         public UsersController(ILogger<UsersController> logger, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _logger = logger;
@@ -54,56 +52,42 @@ namespace DatingManagementSystem.Controllers
             return View(await _context.Users.ToListAsync());
         }
 
-        // POST: Users/Login
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(LoginViewModel model)
+        // IAction for details
+
+        public async Task<IActionResult> GetUserDetails(int? id)
         {
-            if (ModelState.IsValid)
+            if (id == null)
             {
-                var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
-                if (user != null)
-                {
-                    // Authentication logic
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
-                        new Claim(ClaimTypes.Email, user.Email),
-                        new Claim("UserID", user.UserID.ToString()) // Store User ID
-                    };
-
-                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                    var authProperties = new AuthenticationProperties { IsPersistent = true };
-
-                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                                                  new ClaimsPrincipal(claimsIdentity),
-                                                  authProperties);
-
-                    // Store user details in session
-                    _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
-                    HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
-                    HttpContext.Session.SetString("UserEmail", user.Email);
-
-                    return RedirectToAction(nameof(Index));
-                }
-                else
-                {
-                    ModelState.AddModelError("", "Invalid email or password.");
-                }
+                return NotFound();
             }
-            return View(model);
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(m => m.UserID == id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return View(user);
         }
 
-        // IAction for Index
-        public async Task<IActionResult> Index()
-        {
-            return View(await _context.Users.ToListAsync());
-        }
 
-        // Create User
-        public IActionResult Create()
+        // IAction for Delete
+        public async Task<IActionResult> Delete(int? id)
         {
-            return View();
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(m => m.UserID == id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return View(user);
         }
 
         // IAction for delete function
@@ -162,6 +146,8 @@ namespace DatingManagementSystem.Controllers
         {
             try
             {
+                Console.WriteLine("Processing Create request...");
+
                 if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
                 {
                     using var memoryStream = new MemoryStream();
@@ -175,9 +161,15 @@ namespace DatingManagementSystem.Controllers
 
                 if (!ModelState.IsValid)
                 {
+                    Console.WriteLine("ModelState is invalid:");
+                    foreach (var error in ModelState)
+                    {
+                        Console.WriteLine($"Key: {error.Key}, Error: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
+                    }
                     return View(user);
                 }
 
+                Console.WriteLine("Adding user to DB...");
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
                 _context.Entry(user).Reload();
@@ -191,6 +183,7 @@ namespace DatingManagementSystem.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error while saving: {ex.Message}");
                 ModelState.AddModelError("", "An error occurred while saving. Check the logs.");
                 return View(user);
             }
@@ -204,33 +197,133 @@ namespace DatingManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
-            var scores = _context.CompatibilityScores.ToList();
-            return Json(scores);
+            if (ModelState.IsValid)
+            {
+                var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
+                if (user != null)
+                {
+                    // Authentication logic
+                    var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim("UserID", user.UserID.ToString()) // Store User ID
+            };
+
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties { IsPersistent = true };
+
+                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                                                  new ClaimsPrincipal(claimsIdentity),
+                                                  authProperties);
+
+                    // Store user details in session
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
+                    HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
+                    HttpContext.Session.SetString("UserEmail", user.Email);
+
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Invalid email or password.");
+                }
+            }
+            return View(model);
         }
 
-        // Get profile picture
-        public IActionResult GetProfilePicture(int id)
+        //Logout Functionality
+        [HttpPost]
+        public async Task<IActionResult> Logout()
         {
-            var user = _context.Users.Find(id);
-            if (user == null || user.ProfilePicture == null || user.ProfilePicture.Length == 0)
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("Login", "Users");
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+
+
+        public static class CompatibilityStore
+        {
+            public static ConcurrentDictionary<int, Dictionary<int, double>> CompatibilityScores = new();
+        }
+
+        //Calculating Compatibility Score
+        private void ComputeCompatibility(User newUser)
+        {
+            var users = _context.Users.AsNoTracking().ToList();
+            _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
+
+            if (!users.Any()) return;
+
+            var computedScores = new ConcurrentBag<CompatibilityScore>();
+
+            Parallel.ForEach(users, existingUser =>
             {
-                return NotFound();
+                if (existingUser.UserID == newUser.UserID) return;
+
+                double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
+                double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age) / 10.0);
+                double compatibilityScore = similarity * agePenalty;
+
+                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Score = {compatibilityScore}");
+
+                computedScores.Add(new CompatibilityScore
+                {
+                    User1Id = newUser.UserID,
+                    User2Id = existingUser.UserID,
+                    Score = compatibilityScore
+                });
+
+                computedScores.Add(new CompatibilityScore
+                {
+                    User1Id = existingUser.UserID,
+                    User2Id = newUser.UserID,
+                    Score = compatibilityScore
+                });
+            });
+
+            _context.CompatibilityScores.AddRange(computedScores);
+            _context.SaveChanges();
+        }
+
+
+        //Calculating Jaccard Similarity
+
+        private double CalculateJaccardSimilarity(string interests1, string interests2)
+        {
+            if (string.IsNullOrWhiteSpace(interests1) || string.IsNullOrWhiteSpace(interests2))
+            {
+                return 0; // No similarity if either is empty
             }
 
-            return File(user.ProfilePicture, "image/*");
+            // Normalize by trimming and converting to lowercase
+            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
+            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
+
+            int intersection = set1.Intersect(set2).Count(); // Common interests
+            int union = set1.Union(set2).Count(); // All unique interests
+
+            // Return Jaccard similarity: intersection / union
+            return union == 0 ? 0 : (double)intersection / union;
         }
 
-        // Get sorted Compatibility Scores for logged-in user
+
+
+
+        // Endpoint to test if the hashtable is working correctly, Sort the Compatibility Scores
+
         [HttpGet]
+
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
-            var userIdSession = HttpContext.Session.GetString("UserID");
-            if (string.IsNullOrEmpty(userIdSession))
-            {
-                return RedirectToAction("Login");
-            }
-
-            int loggedInUserId = int.Parse(userIdSession);
+            int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
 
             var compatibilityScores = await _context.CompatibilityScores
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
@@ -294,70 +387,6 @@ namespace DatingManagementSystem.Controllers
             return Json(sortedResults);
         }
 
-        // Compute Compatibility Score
-        private void ComputeCompatibility(User newUser)
-        {
-            var users = _context.Users.AsNoTracking().ToList();
-            if (!users.Any()) return;
+    }
 
-            var computedScores = new ConcurrentBag<CompatibilityScore>();
-
-            Parallel.ForEach(users, existingUser =>
-            {
-                if (existingUser.UserID == newUser.UserID) return;
-
-                double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age) / 10.0);
-                double compatibilityScore = similarity * agePenalty;
-
-                computedScores.Add(new CompatibilityScore
-                {
-                    User1Id = newUser.UserID,
-                    User2Id = existingUser.UserID,
-                    Score = compatibilityScore
-                });
-
-                computedScores.Add(new CompatibilityScore
-                {
-                    User1Id = existingUser.UserID,
-                    User2Id = newUser.UserID,
-                    Score = compatibilityScore
-                });
-            });
-
-            _context.CompatibilityScores.AddRange(computedScores);
-            _context.SaveChanges();
-        }
-
-        // POST: Users/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user != null)
-            {
-                _context.Users.Remove(user);
-            }
-            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                                       .Select(i => i.Trim().ToLower()));
-            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                                       .Select(i => i.Trim().ToLower()));
-
-            int intersection = set1.Intersect(set2).Count(); // Common interests
-            int union = set1.Union(set2).Count(); // All unique interests
-
-            return union == 0 ? 0 : (double)intersection / union;
-        }
-        }
-        // Logout functionality
-        public async Task<IActionResult> Logout()
-        {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            HttpContext.Session.Clear();
-            return RedirectToAction(nameof(Login));
-            return _context.Users.Any(e => e.UserID == id);
-        }
-
-
-}}
+}
