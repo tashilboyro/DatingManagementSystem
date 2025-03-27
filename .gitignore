@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Controllers/UsersController.cs
+/Data/ApplicationDbContext.cs
+/Views/Shared/_Layout.cshtml
