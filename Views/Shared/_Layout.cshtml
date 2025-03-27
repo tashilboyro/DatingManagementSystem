@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - DatingManagementSystem</title>
-    <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/Registration.css" asp-append-version="true" />
@@ -15,28 +14,28 @@
     <header>
         <nav class="navbar">
             <h4>LoveBirds</h4>
-            <ul>bn
-                <li>
-                    <a asp-area="" asp-controller="Users" asp-action="Login">Login</a>
-                </li>
-                <li class="nav-item">
-                    <a asp-area="" asp-controller="Users" asp-action="Create">Register</a>
-                </li>
-             
+
+            <ul>
+        
+               
+
                 @if(User.Identity.IsAuthenticated){
+
                     <li class="nav-item">
                         <form asp-area="" asp-controller="Users" asp-action="Logout" method="post">
                             <button type="submit" class="btn btn-link">Logout</button>
                         </form>
                     </li>
                 }
-                else{
+                else
+                {
                     <li>
                         <a asp-area="" asp-controller="Users" asp-action="Login">Login</a>
                     </li>
                     <li class="nav-item">
                         <a asp-area="" asp-controller="Users" asp-action="Create">Register</a>
                     </li>
+                }
             </ul>
         </nav>
     </header>

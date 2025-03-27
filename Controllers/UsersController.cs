@@ -1,13 +1,18 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DatingManagementSystem.Data;
 using DatingManagementSystem.Models;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
+using System.Collections.Concurrent;
+using System.Collections;
 using System.Security.Claims;
 using System.Diagnostics;
-using Microsoft.AspNetCore.Identity;
-
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -38,22 +43,16 @@ namespace DatingManagementSystem.Controllers
         {
             return View();
         }
-        // View Functionality For Different Pages
-        public IActionResult Create()
-        {
-            return View();
-        }
-        public IActionResult Login()
-        {
-            return View();
-        }
 
+
+        // IAction for Index
         public async Task<IActionResult> Index()
         {
             return View(await _context.Users.ToListAsync());
         }
+
         // IAction for details
-       
+
         public async Task<IActionResult> GetUserDetails(int? id)
         {
             if (id == null)
@@ -118,6 +117,8 @@ namespace DatingManagementSystem.Controllers
             var scores = _context.CompatibilityScores.ToList();
             return Json(scores);
         }
+
+        // IAction to get profile pic
         public IActionResult GetProfilePicture(int id)
         {
             var user = _context.Users.Find(id);
@@ -128,21 +129,16 @@ namespace DatingManagementSystem.Controllers
 
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
         }
-        // GET: Users/Details/5
-        public async Task<IActionResult> Details(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(m => m.UserID == id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-        //Register Functionality
+
+
+
+
+
+
+        // POST: Users/Create
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
@@ -175,9 +171,14 @@ namespace DatingManagementSystem.Controllers
                 Console.WriteLine("Adding user to DB...");
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
-                Console.WriteLine("User saved successfully!");
+                _context.Entry(user).Reload();
+                _logger.LogInformation($"User saved successfully with ID: {user.UserID}");
 
-                return RedirectToAction(nameof(Login));
+
+                // Compute compatibility score
+                ComputeCompatibility(user);
+
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
@@ -186,6 +187,10 @@ namespace DatingManagementSystem.Controllers
                 return View(user);
             }
         }
+
+
+
+
         //Login Functionality
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -226,11 +231,20 @@ namespace DatingManagementSystem.Controllers
             return View(model);
         }
 
+        //Logout Functionality
+        [HttpPost]
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("Login", "Users");
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
 
         public static class CompatibilityStore
         {
@@ -240,93 +254,73 @@ namespace DatingManagementSystem.Controllers
         //Calculating Compatibility Score
         private void ComputeCompatibility(User newUser)
         {
-
-
-            var users = _context.Users.ToList();
-
+            var users = _context.Users.AsNoTracking().ToList();
             _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
 
-            if (users.Count == 0)
-            {
-                _logger.LogInformation("No existing users found. Skipping computation.");
-                return;
-            }
+            if (!users.Any()) return;
 
+            var computedScores = new ConcurrentBag<CompatibilityScore>();
 
-            foreach (var existingUser in users)
+            Parallel.ForEach(users, existingUser =>
             {
-                if (existingUser.UserID == newUser.UserID) continue;
+                if (existingUser.UserID == newUser.UserID) return;
 
                 double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                // Age penalty where a 10-year difference results in a penalty of 0.5 (moderated for smoother scoring)
                 double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age) / 10.0);
                 double compatibilityScore = similarity * agePenalty;
 
+                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Score = {compatibilityScore}");
 
-
-
-                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Similarity = {similarity}, AgePenalty = {agePenalty}, Final Score = {compatibilityScore}");
-
-                var existingEntry = _context.CompatibilityScores
-                    .FirstOrDefault(cs => cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID ||
-                                          cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID);
-
-                if (existingEntry == null)
+                computedScores.Add(new CompatibilityScore
                 {
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = newUser.UserID,
-                        User2Id = existingUser.UserID,
-                        Score = compatibilityScore
-                    });
+                    User1Id = newUser.UserID,
+                    User2Id = existingUser.UserID,
+                    Score = compatibilityScore
+                });
 
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = existingUser.UserID,
-                        User2Id = newUser.UserID,
-                        Score = compatibilityScore
-                    });
-                }
-                else
+                computedScores.Add(new CompatibilityScore
                 {
-                    existingEntry.Score = compatibilityScore;
-                    _context.CompatibilityScores.Update(existingEntry);
-                }
-            }
+                    User1Id = existingUser.UserID,
+                    User2Id = newUser.UserID,
+                    Score = compatibilityScore
+                });
+            });
 
+            _context.CompatibilityScores.AddRange(computedScores);
             _context.SaveChanges();
-
-
         }
+
 
         //Calculating Jaccard Similarity
 
         private double CalculateJaccardSimilarity(string interests1, string interests2)
-        //Logout Functionality
-        [HttpPost]
-        public async Task<IActionResult> Logout()
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return RedirectToAction("Login", "Users");
+            if (string.IsNullOrWhiteSpace(interests1) || string.IsNullOrWhiteSpace(interests2))
+            {
+                return 0; // No similarity if either is empty
+            }
+
+            // Normalize by trimming and converting to lowercase
+            var set1 = new HashSet<string>(interests1.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
+            var set2 = new HashSet<string>(interests2.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                       .Select(i => i.Trim().ToLower()));
+
+            int intersection = set1.Intersect(set2).Count(); // Common interests
+            int union = set1.Union(set2).Count(); // All unique interests
+
+            // Return Jaccard similarity: intersection / union
+            return union == 0 ? 0 : (double)intersection / union;
         }
 
-        // GET: Users/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
+
+
+
         // Endpoint to test if the hashtable is working correctly, Sort the Compatibility Scores
 
         [HttpGet]
 
-        // Backend code
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("UserID,FirstName,LastName,Age,Gender,Email,Password,Interests,ProfilePicture,Bio,CreatedAt")] User user)
-
         {
             int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
 
@@ -395,6 +389,3 @@ namespace DatingManagementSystem.Controllers
     }
 
 }
-
-}
-
