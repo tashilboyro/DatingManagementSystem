@@ -52,7 +52,7 @@ namespace DatingManagementSystem.Controllers
         }
 
         // IAction for details
-       
+
         public async Task<IActionResult> GetUserDetails(int? id)
         {
             if (id == null)
@@ -132,7 +132,7 @@ namespace DatingManagementSystem.Controllers
 
 
 
-    
+
 
 
 
@@ -247,64 +247,42 @@ namespace DatingManagementSystem.Controllers
         //Calculating Compatibility Score
         private void ComputeCompatibility(User newUser)
         {
-
-
-            var users = _context.Users.ToList();
-
+            var users = _context.Users.AsNoTracking().ToList();
             _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
 
-            if (users.Count == 0)
-            {
-                _logger.LogInformation("No existing users found. Skipping computation.");
-                return;
-            }
+            if (!users.Any()) return;
 
+            var computedScores = new ConcurrentBag<CompatibilityScore>();
 
-            foreach (var existingUser in users)
+            Parallel.ForEach(users, existingUser =>
             {
-                if (existingUser.UserID == newUser.UserID) continue;
+                if (existingUser.UserID == newUser.UserID) return;
 
                 double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                // Age penalty where a 10-year difference results in a penalty of 0.5 (moderated for smoother scoring)
                 double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age) / 10.0);
                 double compatibilityScore = similarity * agePenalty;
 
+                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Score = {compatibilityScore}");
 
-
-
-                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Similarity = {similarity}, AgePenalty = {agePenalty}, Final Score = {compatibilityScore}");
-
-                var existingEntry = _context.CompatibilityScores
-                    .FirstOrDefault(cs => cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID ||
-                                          cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID);
-
-                if (existingEntry == null)
+                computedScores.Add(new CompatibilityScore
                 {
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = newUser.UserID,
-                        User2Id = existingUser.UserID,
-                        Score = compatibilityScore
-                    });
+                    User1Id = newUser.UserID,
+                    User2Id = existingUser.UserID,
+                    Score = compatibilityScore
+                });
 
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = existingUser.UserID,
-                        User2Id = newUser.UserID,
-                        Score = compatibilityScore
-                    });
-                }
-                else
+                computedScores.Add(new CompatibilityScore
                 {
-                    existingEntry.Score = compatibilityScore;
-                    _context.CompatibilityScores.Update(existingEntry);
-                }
-            }
+                    User1Id = existingUser.UserID,
+                    User2Id = newUser.UserID,
+                    Score = compatibilityScore
+                });
+            });
 
+            _context.CompatibilityScores.AddRange(computedScores);
             _context.SaveChanges();
-
-
         }
+
 
         //Calculating Jaccard Similarity
 
