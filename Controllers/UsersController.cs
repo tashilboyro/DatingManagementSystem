@@ -313,7 +313,6 @@ namespace DatingManagementSystem.Controllers
 
         [HttpGet]
 
-        // Backend code
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
             int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
