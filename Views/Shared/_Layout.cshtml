@@ -14,9 +14,13 @@
     <header>
         <nav class="navbar">
             <h4>LoveBirds</h4>
+
             <ul>
-                @if (User.Identity.IsAuthenticated)
-                {
+        
+               
+
+                @if(User.Identity.IsAuthenticated){
+
                     <li class="nav-item">
                         <form asp-area="" asp-controller="Users" asp-action="Logout" method="post">
                             <button type="submit" class="btn btn-link">Logout</button>
