@@ -39,6 +39,10 @@ namespace DatingManagementSystem.Controllers
         {
             return View();
         }
+        public IActionResult CompatibilityScores()
+        {
+            return View();
+        }
 
 
         // IAction for Index
@@ -48,7 +52,8 @@ namespace DatingManagementSystem.Controllers
         }
 
         // IAction for details
-        public async Task<IActionResult> Details(int? id)
+
+        public async Task<IActionResult> GetUserDetails(int? id)
         {
             if (id == null)
             {
@@ -125,15 +130,10 @@ namespace DatingManagementSystem.Controllers
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
         }
 
-        private User? GetLoggedInUser()
-        {
-            var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst("UserID")?.Value;
-            if (int.TryParse(userIdClaim, out int userId))
-            {
-                return _context.Users.FirstOrDefault(u => u.UserID == userId);
-            }
-            return null;
-        }
+
+
+
+
 
 
         // POST: Users/Create
@@ -231,12 +231,19 @@ namespace DatingManagementSystem.Controllers
             return View(model);
         }
 
+        //Logout Functionality
+        [HttpPost]
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("Login", "Users");
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
-
 
 
         public static class CompatibilityStore
@@ -247,64 +254,42 @@ namespace DatingManagementSystem.Controllers
         //Calculating Compatibility Score
         private void ComputeCompatibility(User newUser)
         {
-
-
-            var users = _context.Users.ToList();
-
+            var users = _context.Users.AsNoTracking().ToList();
             _logger.LogInformation($"Computing compatibility for User {newUser.UserID} with {users.Count} existing users.");
 
-            if (users.Count == 0)
-            {
-                _logger.LogInformation("No existing users found. Skipping computation.");
-                return;
-            }
+            if (!users.Any()) return;
 
+            var computedScores = new ConcurrentBag<CompatibilityScore>();
 
-            foreach (var existingUser in users)
+            Parallel.ForEach(users, existingUser =>
             {
-                if (existingUser.UserID == newUser.UserID) continue;
+                if (existingUser.UserID == newUser.UserID) return;
 
                 double similarity = CalculateJaccardSimilarity(newUser.Interests, existingUser.Interests);
-                // Age penalty where a 10-year difference results in a penalty of 0.5 (moderated for smoother scoring)
                 double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age) / 10.0);
                 double compatibilityScore = similarity * agePenalty;
 
+                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Score = {compatibilityScore}");
 
-
-
-                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Similarity = {similarity}, AgePenalty = {agePenalty}, Final Score = {compatibilityScore}");
-
-                var existingEntry = _context.CompatibilityScores
-                    .FirstOrDefault(cs => cs.User1Id == newUser.UserID && cs.User2Id == existingUser.UserID ||
-                                          cs.User1Id == existingUser.UserID && cs.User2Id == newUser.UserID);
-
-                if (existingEntry == null)
+                computedScores.Add(new CompatibilityScore
                 {
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = newUser.UserID,
-                        User2Id = existingUser.UserID,
-                        Score = compatibilityScore
-                    });
+                    User1Id = newUser.UserID,
+                    User2Id = existingUser.UserID,
+                    Score = compatibilityScore
+                });
 
-                    _context.CompatibilityScores.Add(new CompatibilityScore
-                    {
-                        User1Id = existingUser.UserID,
-                        User2Id = newUser.UserID,
-                        Score = compatibilityScore
-                    });
-                }
-                else
+                computedScores.Add(new CompatibilityScore
                 {
-                    existingEntry.Score = compatibilityScore;
-                    _context.CompatibilityScores.Update(existingEntry);
-                }
-            }
+                    User1Id = existingUser.UserID,
+                    User2Id = newUser.UserID,
+                    Score = compatibilityScore
+                });
+            });
 
+            _context.CompatibilityScores.AddRange(computedScores);
             _context.SaveChanges();
-
-
         }
+
 
         //Calculating Jaccard Similarity
 
@@ -337,14 +322,11 @@ namespace DatingManagementSystem.Controllers
 
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
-            int loggedInUserId = 1;
-
+            int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
 
             var compatibilityScores = await _context.CompatibilityScores
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
                 .ToListAsync();
-
-
 
             Hashtable compatibilityScoresHashtable = new Hashtable();
             foreach (var score in compatibilityScores)
@@ -352,8 +334,6 @@ namespace DatingManagementSystem.Controllers
                 int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
                 compatibilityScoresHashtable[pairedUserId] = score.Score;
             }
-
-
 
             PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
 
@@ -365,21 +345,46 @@ namespace DatingManagementSystem.Controllers
                 {
                     maxHeap.Enqueue(userId, score);
                 }
-
-
             }
 
-            List<object> sortedResults = new List<object>();
+            List<(int UserId, double Score)> sortedUsers = new List<(int UserId, double Score)>();
             while (maxHeap.Count > 0)
             {
                 maxHeap.TryDequeue(out int userId, out double score);
-                sortedResults.Add(new { UserId = userId, CompatibilityScore = score });
+                sortedUsers.Add((userId, score));
             }
+
+            var userIds = sortedUsers.Select(u => u.UserId).ToList();
+            var users = await _context.Users
+                .Where(u => userIds.Contains(u.UserID))
+                .Select(u => new
+                {
+                    u.UserID,
+                    u.FirstName,
+                    u.LastName,
+                    u.Age,
+                    u.Gender,
+                    u.Email,
+                    u.Interests,
+                    u.Bio,
+                    u.CreatedAt,
+                    ProfilePictureUrl = Url.Action("GetProfilePicture", "Users", new { id = u.UserID })
+                })
+                .ToListAsync();
+
+            var sortedResults = sortedUsers.Select(sortedUser =>
+            {
+                var user = users.FirstOrDefault(u => u.UserID == sortedUser.UserId);
+                return new
+                {
+                    UserId = user?.UserID,
+                    CompatibilityScore = sortedUser.Score,
+                    User = user
+                };
+            }).ToList();
 
             return Json(sortedResults);
         }
-
-
 
     }
 
