@@ -130,14 +130,9 @@ namespace DatingManagementSystem.Controllers
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
         }
 
-
-
-
-
-
+    
 
         // POST: Users/Create
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -146,6 +141,16 @@ namespace DatingManagementSystem.Controllers
             try
             {
                 Console.WriteLine("Processing Create request...");
+
+                // Check if the FirstName already exists in the database
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.FirstName.Equals(user.FirstName, StringComparison.OrdinalIgnoreCase));
+                if (existingUser != null)
+                {
+                    ModelState.AddModelError("FirstName", "This First Name is already taken. Please choose another.");
+                    return View(user);  // Return to the view with the error message
+                }
+
+
 
                 if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
                 {
