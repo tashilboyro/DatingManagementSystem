@@ -329,11 +329,26 @@ namespace DatingManagementSystem.Controllers
                 .ToListAsync();
 
             Hashtable compatibilityScoresHashtable = new Hashtable();
+            HashSet<(int, int)> processedPairs = new(); // track unique matchups
+
             foreach (var score in compatibilityScores)
             {
-                int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
-                compatibilityScoresHashtable[pairedUserId] = score.Score;
+                int uid1 = score.User1Id;
+                int uid2 = score.User2Id;
+
+                // Normalize the pair to ensure (A,B) and (B,A) are treated the same
+                var pairKey = uid1 < uid2 ? (uid1, uid2) : (uid2, uid1);
+
+                if (!processedPairs.Contains(pairKey))
+                {
+                    int pairedUserId = uid1 == loggedInUserId ? uid2 : uid1;
+
+                    // Only add if it's the first time this unique pair shows up
+                    compatibilityScoresHashtable[pairedUserId] = score.Score;
+                    processedPairs.Add(pairKey);
+                }
             }
+
 
             PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
 
@@ -383,7 +398,13 @@ namespace DatingManagementSystem.Controllers
                 };
             }).ToList();
 
-            return Json(sortedResults);
+            // Return results with debug message 
+            return Json(new
+            {
+                message = $"Duplicate compatibility score pairs handled. Unique pairs processed: {processedPairs.Count}",
+                results = sortedResults 
+            });
+
         }
 
     }

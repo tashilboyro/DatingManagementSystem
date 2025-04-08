@@ -34,71 +34,66 @@
 </div>
 
 <script>
-	// Store user details in Session Storage
 	sessionStorage.setItem("UserName", "@userName");
 	sessionStorage.setItem("UserEmail", "@userEmail");
 	sessionStorage.setItem("UserID", "@userID");
 
-	// Retrieve and log session storage data
 	console.log("User Name:", sessionStorage.getItem("UserName"));
 	console.log("User Email:", sessionStorage.getItem("UserEmail"));
 	console.log("User ID:", sessionStorage.getItem("UserID"));
 
-	 document.addEventListener("DOMContentLoaded", function () {
-        console.log("DOM fully loaded and parsed, calling fetchCompatibilityScores");
-        fetchCompatibilityScores();
-    });
+	document.addEventListener("DOMContentLoaded", function () {
+		console.log("DOM fully loaded and parsed, calling fetchCompatibilityScores");
+		fetchCompatibilityScores();
+	});
 
-    async function fetchCompatibilityScores() {
-        const tableBody = document.getElementById("userTableBody");
+	async function fetchCompatibilityScores() {
+		const tableBody = document.getElementById("userTableBody");
 
-        if (!tableBody) {
-            console.error("Error: 'userTableBody' element not found in the DOM.");
-            return; // Stop execution if the element is missing
-        }
+		if (!tableBody) {
+			console.error("Error: 'userTableBody' element not found in the DOM.");
+			return;
+		}
 
-        const userId = sessionStorage.getItem("UserID");
+		const userId = sessionStorage.getItem("UserID");
 
-        try {
-            const response = await fetch(`/Users/GetSortedCompatibilityScoresForLoggedInUser`);
-            const result = await response.json();
+		try {
+			const response = await fetch(`/Users/GetSortedCompatibilityScoresForLoggedInUser`);
+			const result = await response.json();
 
-            console.log("Fetched sorted scores:", result);
+			console.log("Message:", result.message); // Log the new message
+			console.log("Fetched sorted scores:", result.results);
 
-            tableBody.innerHTML = ""; // Clear existing rows
+			tableBody.innerHTML = "";
 
-            for (let item of result) {
-                const user = item.user;
-               
+			for (let item of result.results) {
+				const user = item.user;
 
-                if (user) {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${user.firstName}</td>
-                        <td>${user.lastName}</td>
-                        <td>${user.age}</td>
-                        <td>${user.gender}</td>
-                        <td>${user.email}</td>
-                        <td>${user.interests}</td>
-                        <td><img src="${user.profilePictureUrl}" width="60" height="60" class="rounded-circle border border-secondary"></td>
-                        <td>${user.bio}</td>
-                        <td>${new Date(user.createdAt).toLocaleDateString()}</td>
-                        <td>
-                            <button class="btn btn-primary btn-sm">View</button>
-                            <button class="btn btn-warning btn-sm">Edit</button>
-                            <button class="btn btn-danger btn-sm">Delete</button>
-                        </td>
-                    `;
-                    tableBody.appendChild(row);
-                } else {
-                    console.log("User data not found for UserId:", userId);
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching compatibility scores or user details:", error);
-        }
-    }
-
-
-
+				if (user) {
+					const row = document.createElement('tr');
+					row.innerHTML = `
+						<td>${user.firstName}</td>
+						<td>${user.lastName}</td>
+						<td>${user.age}</td>
+						<td>${user.gender}</td>
+						<td>${user.email}</td>
+						<td>${user.interests}</td>
+						<td><img src="${user.profilePictureUrl}" width="60" height="60" class="rounded-circle border border-secondary"></td>
+						<td>${user.bio}</td>
+						<td>${new Date(user.createdAt).toLocaleDateString()}</td>
+						<td>
+							<button class="btn btn-primary btn-sm">View</button>
+							<button class="btn btn-warning btn-sm">Edit</button>
+							<button class="btn btn-danger btn-sm">Delete</button>
+						</td>
+					`;
+					tableBody.appendChild(row);
+				} else {
+					console.log("User data not found for UserId:", userId);
+				}
+			}
+		} catch (error) {
+			console.error("Error fetching compatibility scores or user details:", error);
+		}
+	}
 </script>
