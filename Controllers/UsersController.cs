@@ -147,7 +147,8 @@ namespace DatingManagementSystem.Controllers
                 if (existingUser != null)
                 {
                     ModelState.AddModelError("FirstName", "This First Name is already taken. Please choose another.");
-                    return View(user);  // Return to the view with the error message
+                    return View(user);  // Return to the view with the error message   
+                
                 }
 
 
@@ -206,7 +207,7 @@ namespace DatingManagementSystem.Controllers
                 var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
                 if (user != null)
                 {
-                    // Authentication logic
+                    // Authentication logics
                     var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
