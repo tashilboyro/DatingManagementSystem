@@ -9,6 +9,8 @@
         <hr />
         <form asp-action="Create" method="post" enctype="multipart/form-data">
             <div id="formSections">
+
+
                 <!-- Section 1 -->
                 <div class="form-section">
                     <div class="mb-3">
@@ -94,6 +96,13 @@
                 <button type="submit" class="btn btn-primary rounded-pill shadow-sm fw-bold" style="width: 70%; margin: 0 auto;">Create Account</button>
             </div>
         </form>
+
+        <form asp-controller="Users" asp-action="UploadUsers" method="post" enctype="multipart/form-data" class="mb-4 text-center">
+            <label for="csvFile" class="form-label fw-bold">Bulk Upload Users (CSV)</label>
+            <input type="file" name="csvFile" accept=".csv" class="form-control rounded-pill d-inline-block w-50" />
+            <button type="submit" class="btn btn-success rounded-pill mt-2">Upload CSV</button>
+        </form>
+
     </div>
 </div>
 

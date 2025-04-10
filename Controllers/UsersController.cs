@@ -28,6 +28,59 @@ namespace DatingManagementSystem.Controllers
             _httpContextAccessor = httpContextAccessor;
         }
 
+        //IAction to load Users.csv
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadUsers(IFormFile csvFile)
+        {
+            if (csvFile == null || csvFile.Length == 0)
+            {
+                ModelState.AddModelError("", "CSV file is required.");
+                return View("Index");
+            }
+
+            var users = new List<User>();
+            using (var reader = new StreamReader(csvFile.OpenReadStream()))
+            {
+                bool isFirstLine = true;
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (isFirstLine) { isFirstLine = false; continue; } // Skip header
+
+                    var values = line.Split(',');
+
+                    if (values.Length < 8)
+                        continue; // Invalid line
+
+                    users.Add(new User
+                    {
+                        FirstName = values[0],
+                        LastName = values[1],
+                        Age = int.Parse(values[2]),
+                        Gender = values[3],
+                        Email = values[4],
+                        Password = values[5],
+                        Interests = values[6],
+                        Bio = values[7],
+                        CreatedAt = DateTime.UtcNow,
+                        ProfilePicture = new byte[0] // Empty picture
+                    });
+                }
+            }
+
+            foreach (var user in users)
+            {
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync(); // Save and get UserID
+                ComputeCompatibility(user); // Calculate and store compatibility
+            }
+
+
+            return RedirectToAction(nameof(Index));
+        }
+
+
         // IAction for Login
         public IActionResult Login()
         {
@@ -294,6 +347,7 @@ namespace DatingManagementSystem.Controllers
 
             _context.CompatibilityScores.AddRange(computedScores);
             _context.SaveChanges();
+
         }
 
 
