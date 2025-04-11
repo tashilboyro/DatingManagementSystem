@@ -13,6 +13,9 @@ using System.Security.Claims;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using CsvHelper;
+using CsvHelper.Configuration;
+using System.Globalization;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -28,57 +31,7 @@ namespace DatingManagementSystem.Controllers
             _httpContextAccessor = httpContextAccessor;
         }
 
-        //IAction to load Users.csv
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UploadUsers(IFormFile csvFile)
-        {
-            if (csvFile == null || csvFile.Length == 0)
-            {
-                ModelState.AddModelError("", "CSV file is required.");
-                return View("Index");
-            }
 
-            var users = new List<User>();
-            using (var reader = new StreamReader(csvFile.OpenReadStream()))
-            {
-                bool isFirstLine = true;
-                while (!reader.EndOfStream)
-                {
-                    var line = await reader.ReadLineAsync();
-                    if (isFirstLine) { isFirstLine = false; continue; } // Skip header
-
-                    var values = line.Split(',');
-
-                    if (values.Length < 8)
-                        continue; // Invalid line
-
-                    users.Add(new User
-                    {
-                        FirstName = values[0],
-                        LastName = values[1],
-                        Age = int.Parse(values[2]),
-                        Gender = values[3],
-                        Email = values[4],
-                        Password = values[5],
-                        Interests = values[6],
-                        Bio = values[7],
-                        CreatedAt = DateTime.UtcNow,
-                        ProfilePicture = new byte[0] // Empty picture
-                    });
-                }
-            }
-
-            foreach (var user in users)
-            {
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync(); // Save and get UserID
-                ComputeCompatibility(user); // Calculate and store compatibility
-            }
-
-
-            return RedirectToAction(nameof(Index));
-        }
 
 
         // IAction for Login
@@ -181,14 +134,67 @@ namespace DatingManagementSystem.Controllers
             }
 
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
+
         }
 
-    
+        // IAction to load Users.csv
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadUsers(IFormFile csvFile)
+        {
+            if (csvFile == null || csvFile.Length == 0)
+            {
+                ModelState.AddModelError("", "CSV file is required.");
+                return View("Index");
+            }
+
+            var users = new List<User>();
+
+            using var reader = new StreamReader(csvFile.OpenReadStream());
+            using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = true,  // Assumes the CSV file has a header
+                Delimiter = ",", // Assumes CSV file uses comma as delimiter
+                Quote = '"', // Handle quoted fields like Interests that contain commas
+            });
+
+            try
+            {
+                csv.Context.RegisterClassMap<UserMap>();
+            
+                // Read records and parse the rows into User objects
+                var records = csv.GetRecords<User>();
+
+                foreach (var record in records)
+                {
+                    users.Add(record);
+                }
+            }
+            catch (CsvHelperException ex)
+            {
+                _logger.LogWarning($"CSV parsing failed: {ex.Message}");
+                return View("Create");
+            }
+
+            // Add valid users to the database
+            _context.Users.AddRange(users);
+            await _context.SaveChangesAsync();
+
+            // Compute compatibility for all users
+            foreach (var user in users)
+            {
+                ComputeCompatibility(user);
+            }
+
+            return RedirectToAction(nameof(Login));
+        }
+
 
         // POST: Users/Create
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
         {
             try
@@ -196,15 +202,13 @@ namespace DatingManagementSystem.Controllers
                 Console.WriteLine("Processing Create request...");
 
                 // Check if the FirstName already exists in the database
-                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.FirstName.Equals(user.FirstName, StringComparison.OrdinalIgnoreCase));
+                var existingUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.FirstName.ToLower() == user.FirstName.ToLower());
                 if (existingUser != null)
                 {
                     ModelState.AddModelError("FirstName", "This First Name is already taken. Please choose another.");
                     return View(user);  // Return to the view with the error message   
-                
                 }
-
-
 
                 if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
                 {
@@ -233,11 +237,10 @@ namespace DatingManagementSystem.Controllers
                 _context.Entry(user).Reload();
                 _logger.LogInformation($"User saved successfully with ID: {user.UserID}");
 
-
                 // Compute compatibility score
                 ComputeCompatibility(user);
 
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Login));
             }
             catch (Exception ex)
             {
@@ -246,7 +249,6 @@ namespace DatingManagementSystem.Controllers
                 return View(user);
             }
         }
-
 
 
 
@@ -389,7 +391,7 @@ namespace DatingManagementSystem.Controllers
                 .ToListAsync();
 
             Hashtable compatibilityScoresHashtable = new Hashtable();
-            HashSet<(int, int)> processedPairs = new(); // track unique matchups
+            HashSet<(int, int)> processedPairs = new(); // Track unique matchups
 
             foreach (var score in compatibilityScores)
             {
@@ -409,13 +411,13 @@ namespace DatingManagementSystem.Controllers
                 }
             }
 
-
             PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
 
             foreach (DictionaryEntry entry in compatibilityScoresHashtable)
             {
                 int userId = (int)entry.Key;
                 double score = entry.Value as double? ?? 0.0;
+
                 if (score > 0)
                 {
                     maxHeap.Enqueue(userId, score);
@@ -429,7 +431,13 @@ namespace DatingManagementSystem.Controllers
                 sortedUsers.Add((userId, score));
             }
 
-            var userIds = sortedUsers.Select(u => u.UserId).ToList();
+            // compatibility threshold to filter users
+            double compatibilityThreshold = 0.02; // threshold here
+            var userIds = sortedUsers
+                .Where(u => u.Score >= compatibilityThreshold) // Only include users above threshold
+                .Select(u => u.UserId)
+                .ToList();
+
             var users = await _context.Users
                 .Where(u => userIds.Contains(u.UserID))
                 .Select(u => new
@@ -447,26 +455,27 @@ namespace DatingManagementSystem.Controllers
                 })
                 .ToListAsync();
 
-            var sortedResults = sortedUsers.Select(sortedUser =>
-            {
-                var user = users.FirstOrDefault(u => u.UserID == sortedUser.UserId);
-                return new
+            var sortedResults = sortedUsers
+                .Where(sortedUser => userIds.Contains(sortedUser.UserId)) // Only include the filtered users
+                .Select(sortedUser =>
                 {
-                    UserId = user?.UserID,
-                    CompatibilityScore = sortedUser.Score,
-                    User = user
-                };
-            }).ToList();
+                    var user = users.FirstOrDefault(u => u.UserID == sortedUser.UserId);
+                    return new
+                    {
+                        UserId = user?.UserID,
+                        CompatibilityScore = sortedUser.Score,
+                        User = user
+                    };
+                })
+                .ToList();
 
-            // Return results with debug message 
+            // Return results with debug message
             return Json(new
             {
                 message = $"Duplicate compatibility score pairs handled. Unique pairs processed: {processedPairs.Count}",
-                results = sortedResults 
+                results = sortedResults
             });
-
         }
 
     }
-
 }

@@ -99,9 +99,14 @@
 
         <form asp-controller="Users" asp-action="UploadUsers" method="post" enctype="multipart/form-data" class="mb-4 text-center">
             <label for="csvFile" class="form-label fw-bold">Bulk Upload Users (CSV)</label>
-            <input type="file" name="csvFile" accept=".csv" class="form-control rounded-pill d-inline-block w-50" />
+            <input type="file" name="csvFile" accept=".csv" class="form-control rounded-pill d-inline-block w-50" required />
+            <small class="text-muted d-block mt-2">Ensure your CSV file is formatted correctly (e.g., FirstName, LastName, Age, etc.).</small>
             <button type="submit" class="btn btn-success rounded-pill mt-2">Upload CSV</button>
         </form>
+
+
+       
+
 
     </div>
 </div>
