@@ -15,3 +15,13 @@
         background: #ff5c74;
     }
 
+.navbar-links a{
+    font-size: 25px;
+}
+
+.navbar-links li{
+    padding-left: 35px;
+}
+.navbar-links button{
+    font-size:25px;
+}
