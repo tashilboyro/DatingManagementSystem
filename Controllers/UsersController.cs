@@ -161,7 +161,7 @@ namespace DatingManagementSystem.Controllers
             try
             {
                 csv.Context.RegisterClassMap<UserMap>();
-            
+
                 // Read records and parse the rows into User objects
                 var records = csv.GetRecords<User>();
 
@@ -410,7 +410,6 @@ namespace DatingManagementSystem.Controllers
                     processedPairs.Add(pairKey);
                 }
             }
-
 
             PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
 
