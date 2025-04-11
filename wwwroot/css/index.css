@@ -1,0 +1,112 @@
+﻿body {
+    background: #f3e8ff; /* Pale Purple */
+    margin: 0;
+}
+/* Swiper Container Styling */
+.swiper-container {
+    width: 100%;
+    padding: 2rem 0;
+}
+
+/* Swiper Wrapper - flex behavior is handled by Swiper itself */
+.swiper-wrapper {
+    display: flex;
+    align-items: stretch;
+}
+
+/* Each Slide */
+.swiper-slide {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: auto;
+    width: auto !important; /* Let Swiper handle width */
+}
+
+/* Profile Card Styling */
+.profile-card {
+    width: 100%;
+    max-width: 250px;
+    background-color: #ffffff;
+    border-radius: 16px;
+    padding: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+    .profile-card:hover {
+        transform: translateY(-5px);
+    }
+
+    /* Profile Image */
+    .profile-card img {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 3px solid #6c757d; /* Bootstrap's secondary color */
+    }
+
+    /* Name and Age */
+    .profile-card h5 {
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    /* Bio */
+    .profile-card p {
+        font-size: 0.95rem;
+        color: #6c757d;
+    }
+
+    /* Buttons */
+    .profile-card .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1.2rem;
+        border-radius: 30px;
+        transition: background-color 0.2s ease;
+    }
+
+    .profile-card .btn-success:hover {
+        background-color: #218838;
+    }
+
+    .profile-card .btn-danger:hover {
+        background-color: #c82333;
+    }
+
+/* Swiper Buttons */
+.swiper-button-next,
+.swiper-button-prev {
+    color: #000;
+}
+
+/* Swiper Pagination */
+.swiper-pagination-bullet {
+    background: #6c757d;
+    opacity: 0.6;
+}
+
+.swiper-pagination-bullet-active {
+    background: #000;
+    opacity: 1;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1024px) {
+    .swiper-container {
+        padding: 1.5rem 0;
+    }
+
+    .swiper-slide {
+        max-width: 50%;
+    }
+}
+
+@media (max-width: 768px) {
+    .swiper-slide {
+        max-width: 100%;
+    }
+}
+

@@ -1,26 +1,29 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - DatingManagementSystem</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/Registration.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout.css"/>
     <link rel="stylesheet" href="~/DatingManagementSystem.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <nav class="navbar">
             <div class="container">
-                <a class="navbar-brand" href="#">LoveBirds</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav ms-auto">
+                <h3>
+                    <img src="~/lib/Logo.png" style="width: 70px; height: 70px; margin-right: 10px;"/>
+                    LoveBirds
+                </h3>
+                <div id="navbarNav">
+                    <ul>
                         @if (User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">

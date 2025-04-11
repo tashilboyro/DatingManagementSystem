@@ -1,9 +1,4 @@
-﻿body {
-    background: linear-gradient(135deg, #9933FF 0%, #FF6699 100%);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.container {
+﻿.container {
     max-width: 1000px;
 }
 
@@ -46,19 +41,6 @@ textarea.form-control {
 .rounded-pill {
     border-radius: 50px !important;
 }
-
-.btn-primary {
-    background: #ff758c;
-    border: none;
-    padding: 12px 30px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    transition: background 0.3s ease;
-}
-
-    .btn-primary:hover {
-        background: #ff5c74;
-    }
 
 .btn-secondary {
     background: #ccc;
@@ -130,4 +112,3 @@ input[type="file"] {
     font-size: 0.85rem;
     margin-top: 5px;
 }
-
