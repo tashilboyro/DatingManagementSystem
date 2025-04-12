@@ -1,0 +1,49 @@
+﻿body{
+    font-family: cursive;
+    font-size: 20px;
+}
+.login-card{
+    background: #ddbcf5;
+    padding:2%;
+    margin-top: 8%;
+    width: 60%;
+    height: 50vh;
+    margin-left: 20%;
+    border-radius: 10px;
+}
+.login-card h3{
+    text-align:center;
+}
+.email label{
+    margin-top:3%;
+    margin-left: 15%;
+    font-size: 22px;
+}
+.email input{
+    padding:1.5%;
+    margin-left: 12%;
+    width: 75%;
+    background: transparent;
+    border: 1px solid black;
+    margin-bottom: 2%;
+}
+.password label {
+    margin-left: 15%;
+    font-size: 22px;
+}
+::placeholder{
+    background: transparent;
+}
+.password input {
+    padding: 1.5%;
+    margin-left: 12%;
+    width: 75%;
+    background: transparent;
+    border: 1px solid black;
+    margin-bottom: 2%;
+}
+.login-btn button{
+    margin-top: 2%;
+    margin-left:38%;
+    width: 20%;
+}

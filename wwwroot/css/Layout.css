@@ -1,0 +1,27 @@
+﻿body {
+    background: linear-gradient(135deg, white 0%, #a96ef5 100%);
+    font-family:cursive;
+}
+.btn-primary {
+    background: #ff758c;
+    border: none;
+    padding: 12px 30px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: background 0.3s ease;
+}
+
+    .btn-primary:hover {
+        background: #ff5c74;
+    }
+
+.navbar-links a{
+    font-size: 25px;
+}
+
+.navbar-links li{
+    padding-left: 35px;
+}
+.navbar-links button{
+    font-size:25px;
+}
