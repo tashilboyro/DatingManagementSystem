@@ -220,10 +220,13 @@ namespace DatingManagementSystem.Controllers
 
                 // Check if the FirstName already exists in the database
                 var existingUser = await _context.Users
-                    .FirstOrDefaultAsync(u => u.FirstName.ToLower() == user.FirstName.ToLower());
+                    .FirstOrDefaultAsync(u =>
+                        u.FirstName.ToLower() == user.FirstName.ToLower() &&
+                        u.LastName.ToLower() == user.LastName.ToLower());
+
                 if (existingUser != null)
                 {
-                    ModelState.AddModelError("FirstName", "This First Name is already taken. Please choose another.");
+                    ModelState.AddModelError("", "A user with this First Name and Last Name already exists in the database. Please choose another");
                     return View(user);  // Return to the view with the error message   
                 }
 
@@ -279,12 +282,12 @@ namespace DatingManagementSystem.Controllers
                 var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
                 if (user != null)
                 {
-                    // Authentication logics
+                    // Authentication logic
                     var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim("UserID", user.UserID.ToString()) // Store User ID
+                new Claim("UserID", user.UserID.ToString())
             };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -294,7 +297,7 @@ namespace DatingManagementSystem.Controllers
                                                   new ClaimsPrincipal(claimsIdentity),
                                                   authProperties);
 
-                    // Store user details in session
+                    // Session storage
                     _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
                     HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
                     HttpContext.Session.SetString("UserEmail", user.Email);
@@ -303,11 +306,14 @@ namespace DatingManagementSystem.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError("", "Invalid email or password.");
+                    TempData["LoginError"] = "true";
+                    return RedirectToAction(nameof(Login));
                 }
             }
+
             return View(model);
         }
+
 
         //Logout Functionality
         [HttpPost]
