@@ -43,5 +43,17 @@
                     });
             </text>
         }
+
+        @if (TempData["LogoutSuccess"]?.ToString() == "true")
+        {
+            <text>
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Logout Successful!',
+                        text: 'You have been successfully logged out.',
+                        confirmButtonColor: '#3085d6'
+                    });
+            </text>
+        }
     </script>
 }

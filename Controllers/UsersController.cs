@@ -226,9 +226,15 @@ namespace DatingManagementSystem.Controllers
 
                 if (existingUser != null)
                 {
-                    ModelState.AddModelError("", "A user with this First Name and Last Name already exists in the database. Please choose another");
-                    return View(user);  // Return to the view with the error message   
+                    TempData["DuplicateNameError"] = "true";
+
+                    // Clear only the FirstName and LastName so user can input new ones
+                    user.FirstName = string.Empty;
+                    user.LastName = string.Empty;
+
+                    return View(user);  // SweetAlert will be triggered from the view
                 }
+
 
                 if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
                 {
@@ -302,6 +308,8 @@ namespace DatingManagementSystem.Controllers
                     HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
                     HttpContext.Session.SetString("UserEmail", user.Email);
 
+                    // Set TempData for successful login
+                    TempData["LoginSuccess"] = "true";
                     return RedirectToAction(nameof(Index));
                 }
                 else
@@ -320,6 +328,9 @@ namespace DatingManagementSystem.Controllers
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Set TempData for successful logout
+            TempData["LogoutSuccess"] = "true";
             return RedirectToAction("Login", "Users");
         }
 
