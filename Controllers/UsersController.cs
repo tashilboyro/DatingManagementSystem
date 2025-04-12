@@ -13,6 +13,7 @@ using System.Security.Claims;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.CodeAnalysis.Elfie.Serialization;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -44,7 +45,6 @@ namespace DatingManagementSystem.Controllers
             return View();
         }
 
-
         // IAction for Index
         public async Task<IActionResult> Index()
         {
@@ -52,7 +52,6 @@ namespace DatingManagementSystem.Controllers
         }
 
         // IAction for details
-
         public async Task<IActionResult> GetUserDetails(int? id)
         {
             if (id == null)
@@ -69,7 +68,6 @@ namespace DatingManagementSystem.Controllers
 
             return View(user);
         }
-
 
         // IAction for Delete
         public async Task<IActionResult> Delete(int? id)
@@ -110,7 +108,6 @@ namespace DatingManagementSystem.Controllers
         }
 
         // IAction for Compatibility score to test on Postman
-
         [HttpGet]
         public IActionResult GetCompatibilityScores()
         {
@@ -130,15 +127,7 @@ namespace DatingManagementSystem.Controllers
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
         }
 
-
-
-
-
-
-
         // POST: Users/Create
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
@@ -146,6 +135,15 @@ namespace DatingManagementSystem.Controllers
             try
             {
                 Console.WriteLine("Processing Create request...");
+
+                // Check if the FirstName already exists in the database
+                var existingUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.FirstName.ToLower() == user.FirstName.ToLower());
+                if (existingUser != null)
+                {
+                    ModelState.AddModelError("FirstName", "This First Name is already taken. Please choose another.");
+                    return View(user);  // Return to the view with the error message   
+                }
 
                 if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
                 {
@@ -174,11 +172,10 @@ namespace DatingManagementSystem.Controllers
                 _context.Entry(user).Reload();
                 _logger.LogInformation($"User saved successfully with ID: {user.UserID}");
 
-
                 // Compute compatibility score
                 ComputeCompatibility(user);
 
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Login));
             }
             catch (Exception ex)
             {
@@ -187,9 +184,6 @@ namespace DatingManagementSystem.Controllers
                 return View(user);
             }
         }
-
-
-
 
         //Login Functionality
         [HttpPost]
@@ -201,13 +195,13 @@ namespace DatingManagementSystem.Controllers
                 var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
                 if (user != null)
                 {
-                    // Authentication logic
+                    // Authentication logics
                     var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim("UserID", user.UserID.ToString()) // Store User ID
-            };
+                    {
+                        new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
+                        new Claim(ClaimTypes.Email, user.Email),
+                        new Claim("UserID", user.UserID.ToString()) // Store User ID
+                    };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                     var authProperties = new AuthenticationProperties { IsPersistent = true };
@@ -245,7 +239,6 @@ namespace DatingManagementSystem.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-
         public static class CompatibilityStore
         {
             public static ConcurrentDictionary<int, Dictionary<int, double>> CompatibilityScores = new();
@@ -269,7 +262,7 @@ namespace DatingManagementSystem.Controllers
                 double agePenalty = 1 / (1 + Math.Abs(newUser.Age - existingUser.Age) / 10.0);
                 double compatibilityScore = similarity * agePenalty;
 
-                _logger.LogInformation($"User {newUser.UserID} ↔ User {existingUser.UserID}: Score = {compatibilityScore}");
+                _logger.LogInformation($"User {newUser.UserID} ↔️ User {existingUser.UserID}: Score = {compatibilityScore}");
 
                 computedScores.Add(new CompatibilityScore
                 {
@@ -290,9 +283,7 @@ namespace DatingManagementSystem.Controllers
             _context.SaveChanges();
         }
 
-
         //Calculating Jaccard Similarity
-
         private double CalculateJaccardSimilarity(string interests1, string interests2)
         {
             if (string.IsNullOrWhiteSpace(interests1) || string.IsNullOrWhiteSpace(interests2))
@@ -313,13 +304,8 @@ namespace DatingManagementSystem.Controllers
             return union == 0 ? 0 : (double)intersection / union;
         }
 
-
-
-
         // Endpoint to test if the hashtable is working correctly, Sort the Compatibility Scores
-
         [HttpGet]
-
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
             int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
@@ -329,10 +315,24 @@ namespace DatingManagementSystem.Controllers
                 .ToListAsync();
 
             Hashtable compatibilityScoresHashtable = new Hashtable();
+            HashSet<(int, int)> processedPairs = new(); // Track unique matchups
+
             foreach (var score in compatibilityScores)
             {
-                int pairedUserId = score.User1Id == loggedInUserId ? score.User2Id : score.User1Id;
-                compatibilityScoresHashtable[pairedUserId] = score.Score;
+                int uid1 = score.User1Id;
+                int uid2 = score.User2Id;
+
+                // Normalize the pair to ensure (A,B) and (B,A) are treated the same
+                var pairKey = uid1 < uid2 ? (uid1, uid2) : (uid2, uid1);
+
+                if (!processedPairs.Contains(pairKey))
+                {
+                    int pairedUserId = uid1 == loggedInUserId ? uid2 : uid1;
+
+                    // Only add if it's the first time this unique pair shows up
+                    compatibilityScoresHashtable[pairedUserId] = score.Score;
+                    processedPairs.Add(pairKey);
+                }
             }
 
             PriorityQueue<int, double> maxHeap = new PriorityQueue<int, double>(Comparer<double>.Create((a, b) => b.CompareTo(a)));
@@ -341,6 +341,7 @@ namespace DatingManagementSystem.Controllers
             {
                 int userId = (int)entry.Key;
                 double score = entry.Value as double? ?? 0.0;
+
                 if (score > 0)
                 {
                     maxHeap.Enqueue(userId, score);
@@ -354,7 +355,13 @@ namespace DatingManagementSystem.Controllers
                 sortedUsers.Add((userId, score));
             }
 
-            var userIds = sortedUsers.Select(u => u.UserId).ToList();
+            // Define a compatibility threshold to filter users
+            double compatibilityThreshold = 0.1; // Set the threshold here
+            var userIds = sortedUsers
+                .Where(u => u.Score >= compatibilityThreshold) // Only include users above threshold
+                .Select(u => u.UserId)
+                .ToList();
+
             var users = await _context.Users
                 .Where(u => userIds.Contains(u.UserID))
                 .Select(u => new
@@ -372,20 +379,26 @@ namespace DatingManagementSystem.Controllers
                 })
                 .ToListAsync();
 
-            var sortedResults = sortedUsers.Select(sortedUser =>
-            {
-                var user = users.FirstOrDefault(u => u.UserID == sortedUser.UserId);
-                return new
+            var sortedResults = sortedUsers
+                .Where(sortedUser => userIds.Contains(sortedUser.UserId)) // Only include the filtered users
+                .Select(sortedUser =>
                 {
-                    UserId = user?.UserID,
-                    CompatibilityScore = sortedUser.Score,
-                    User = user
-                };
-            }).ToList();
+                    var user = users.FirstOrDefault(u => u.UserID == sortedUser.UserId);
+                    return new
+                    {
+                        UserId = user?.UserID,
+                        CompatibilityScore = sortedUser.Score,
+                        User = user
+                    };
+                })
+                .ToList();
 
-            return Json(sortedResults);
+            // Return results with debug message
+            return Json(new
+            {
+                message = $"Duplicate compatibility score pairs handled. Unique pairs processed: {processedPairs.Count}",
+                results = sortedResults
+            });
         }
-
     }
-
 }
