@@ -5,7 +5,7 @@ Users may register and then log in. Upon registration, the compatibility score o
 against all the existing users in the database (LoveBirdsDatabase). Then upon login, 
 the most compatible users with that logged in user is displayed on the user interface.
 
-1. Registered users are stores in the `Users` table in the `LoveBirdsDatabase` database.
+1. Registered users are stored in the `Users` table in the `LoveBirdsDatabase` database.
 <br>
 2. Logged in users are stores in the session storage.
 <br>
