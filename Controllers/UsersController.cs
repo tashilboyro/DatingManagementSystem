@@ -148,26 +148,43 @@ namespace DatingManagementSystem.Controllers
                 return View("Index");
             }
 
-            var users = new List<User>();
+            var usersToAdd = new List<User>();
 
             using var reader = new StreamReader(csvFile.OpenReadStream());
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                HasHeaderRecord = true,  // Assumes the CSV file has a header
-                Delimiter = ",", // Assumes CSV file uses comma as delimiter
-                Quote = '"', // Handle quoted fields like Interests that contain commas
+                HasHeaderRecord = true,
+                Delimiter = ",",
+                Quote = '"',
             });
 
             try
             {
                 csv.Context.RegisterClassMap<UserMap>();
-
-                // Read records and parse the rows into User objects
                 var records = csv.GetRecords<User>();
+
+                // Keep track of names seen in the current CSV
+                var csvNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Also fetch existing names from the DB to avoid inserting duplicates
+                var existingNamesInDb = await _context.Users
+                    .Select(u => u.FirstName.ToLower() + " " + u.LastName.ToLower())
+                    .ToListAsync();
+                var dbNameSet = new HashSet<string>(existingNamesInDb);
 
                 foreach (var record in records)
                 {
-                    users.Add(record);
+                    string fullName = (record.FirstName + " " + record.LastName).ToLower();
+
+                    // Skip if it's a duplicate in CSV or already in the database
+                    if (csvNameSet.Contains(fullName) || dbNameSet.Contains(fullName))
+                    {
+                        _logger.LogInformation($"Duplicate skipped: {record.FirstName} {record.LastName}");
+                        continue;
+                    }
+
+                    usersToAdd.Add(record);
+                    csvNameSet.Add(fullName);
                 }
             }
             catch (CsvHelperException ex)
@@ -177,11 +194,11 @@ namespace DatingManagementSystem.Controllers
             }
 
             // Add valid users to the database
-            _context.Users.AddRange(users);
+            _context.Users.AddRange(usersToAdd);
             await _context.SaveChangesAsync();
 
-            // Compute compatibility for all users
-            foreach (var user in users)
+            // Compute compatibility for all newly added users
+            foreach (var user in usersToAdd)
             {
                 ComputeCompatibility(user);
             }
