@@ -1,60 +1,32 @@
-﻿@model IEnumerable<DatingManagementSystem.Models.User>
+@model IEnumerable<DatingManagementSystem.Models.User>
 
 @{
 	ViewData["Title"] = "Users List";
 }
+
 @{
 	var userName = Context.Session.GetString("UserName");
 	var userEmail = Context.Session.GetString("UserEmail");
 	var userID = Context.Session.GetString("UserID");
-    }
+}
+
 <!-- Swiper Container -->
 <div class="swiper-container">
-    <div class="swiper-wrapper">
-        @foreach (var user in Model)
-        {
-            <div class="swiper-slide">
-                <div class="card shadow-lg p-3 text-center">
-                    @{
-                        string base64Image = user.ProfilePicture != null ? $"data:image/png;base64,{Convert.ToBase64String(user.ProfilePicture)}" : "/images/default-avatar.png";
-                    }
-                    <img src="@base64Image" class="rounded-circle" alt="@user.FirstName" style="width: 150px; height: 150px; object-fit: cover;">
-                    <h5 class="mt-3">@user.FirstName, @user.Age</h5>
-                    <p>@user.Bio</p>
-                    <div class="mt-3">
-                        <button class="btn btn-success rounded-pill">Like ❤️</button>
-                        <button class="btn btn-danger rounded-pill">Skip ❌</button>
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
+	<div class="swiper-wrapper">
+	</div>
 
-    <!-- Swiper Pagination & Navigation -->
-    <div class="swiper-pagination"></div>
-    <div class="swiper-button-next"></div>
-    <div class="swiper-button-prev"></div>
+	<!-- Swiper Navigation -->
+	<div class="swiper-pagination"></div>
+	<div class="swiper-button-next"></div>
+	<div class="swiper-button-prev"></div>
 </div>
 
 <!-- Swiper.js CDN -->
+<link rel="stylesheet" href="/css/index.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper/swiper-bundle.min.css">
 <script src="https://cdn.jsdelivr.net/npm/swiper/swiper-bundle.min.js"></script>
 
 <script>
-    var swiper = new Swiper('.swiper-container', {
-        slidesPerView: 1,
-        spaceBetween: 10,
-        loop: true,
-        navigation: {
-            nextEl: '.swiper-button-next',
-            prevEl: '.swiper-button-prev',
-        },
-        pagination: {
-            el: '.swiper-pagination',
-            clickable: true,
-        },
-    });
-
 	// Store user details in Session Storage
 	sessionStorage.setItem("UserName", "@userName");
 	sessionStorage.setItem("UserEmail", "@userEmail");
@@ -65,61 +37,77 @@
 	console.log("User Email:", sessionStorage.getItem("UserEmail"));
 	console.log("User ID:", sessionStorage.getItem("UserID"));
 
-	 document.addEventListener("DOMContentLoaded", function () {
-        console.log("DOM fully loaded and parsed, calling fetchCompatibilityScores");
-        fetchCompatibilityScores();
-    });
+	document.addEventListener("DOMContentLoaded", function () {
+		console.log("DOM fully loaded and parsed, calling fetchCompatibilityScores");
+		fetchCompatibilityScores();
+	});
 
-    async function fetchCompatibilityScores() {
-        const tableBody = document.getElementById("userTableBody");
+	async function fetchCompatibilityScores() {
+		const swiperWrapper = document.querySelector(".swiper-wrapper");
 
-        if (!tableBody) {
-            console.error("Error: 'userTableBody' element not found in the DOM.");
-            return; // Stop execution if the element is missing
-        }
+		if (!swiperWrapper) {
+			console.error("Error: 'swiper-wrapper' element not found in the DOM.");
+			return;
+		}
 
-        const userId = sessionStorage.getItem("UserID");
+		const userId = sessionStorage.getItem("UserID");
 
-        try {
-            const response = await fetch(`/Users/GetSortedCompatibilityScoresForLoggedInUser`);
-            const result = await response.json();
+		try {
+			const response = await fetch(`/Users/GetSortedCompatibilityScoresForLoggedInUser`);
+			const result = await response.json();
 
-            console.log("Fetched sorted scores:", result);
+			console.log("Fetched sorted scores:", result.results);
 
-            tableBody.innerHTML = ""; // Clear existing rows
+			swiperWrapper.innerHTML = ""; // Clear existing slides
 
-            for (let item of result) {
-                const user = item.user;
-               
+			for (let item of result.results) {
+				const user = item.user;
 
-                if (user) {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${user.firstName}</td>
-                        <td>${user.lastName}</td>
-                        <td>${user.age}</td>
-                        <td>${user.gender}</td>
-                        <td>${user.email}</td>
-                        <td>${user.interests}</td>
-                        <td><img src="${user.profilePictureUrl}" width="60" height="60" class="rounded-circle border border-secondary"></td>
-                        <td>${user.bio}</td>
-                        <td>${new Date(user.createdAt).toLocaleDateString()}</td>
-                        <td>
-                            <button class="btn btn-primary btn-sm">View</button>
-                            <button class="btn btn-warning btn-sm">Edit</button>
-                            <button class="btn btn-danger btn-sm">Delete</button>
-                        </td>
-                    `;
-                    tableBody.appendChild(row);
-                } else {
-                    console.log("User data not found for UserId:", userId);
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching compatibility scores or user details:", error);
-        }
-    }
+				if (user) {
+					const base64Image = user.profilePictureUrl
+						? user.profilePictureUrl // If the profile picture is available
+						: "/images/default-avatar.png"; // Fallback image
 
+					const slide = document.createElement("div");
+					slide.classList.add("swiper-slide");
 
+					slide.innerHTML = `
+						<div class="card profile-card text-center p-4">
+							<div class="d-flex justify-content-center align-items-center" style="flex-grow: 1;">
+								<img src="${base64Image}" class="rounded-circle border border-2 border-secondary" alt="${user.firstName}" style="width: 150px; height: 150px; object-fit: cover;">
+							</div>
+							<h5 class="mt-3 mb-1">${user.firstName}, ${user.age}</h5>
+							<p class="text-muted px-2">${user.bio}</p>
+							<div class="mt-3 mb-2 d-flex justify-content-around">
+								<button class="btn btn-success rounded-pill px-3">Like ❤</button>
+								<button class="btn btn-danger rounded-pill px-3">Skip ❌</button>
+							</div>
+						</div>
+					`;
 
+					swiperWrapper.appendChild(slide);
+				} else {
+					console.log("User data not found for UserId:", userId);
+				}
+			}
+
+			// Initialize Swiper after the content is loaded
+	var swiper = new Swiper('.swiper-container', {
+		slidesPerView: 3,
+		spaceBetween: 100, // Add spacing between cards
+		loop: false, // Prevents extra slides from showing
+		navigation: {
+			nextEl: '.swiper-button-next',
+			prevEl: '.swiper-button-prev',
+		},
+		pagination: {
+			el: '.swiper-pagination',
+			clickable: true,
+		},
+	});
+
+		} catch (error) {
+			console.error("Error fetching compatibility scores or user details:", error);
+		}
+	}
 </script>

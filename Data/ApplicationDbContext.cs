@@ -1,5 +1,6 @@
 ﻿using DatingManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
+using static DatingManagementSystem.Controllers.UsersController;
 
 namespace DatingManagementSystem.Data
 {
