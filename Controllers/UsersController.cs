@@ -13,7 +13,6 @@ using System.Security.Claims;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.CodeAnalysis.Elfie.Serialization;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -28,6 +27,9 @@ namespace DatingManagementSystem.Controllers
             _context = context;
             _httpContextAccessor = httpContextAccessor;
         }
+
+
+
 
         // IAction for Login
         public IActionResult Login()
@@ -125,11 +127,32 @@ namespace DatingManagementSystem.Controllers
             }
 
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
+
         }
 
-        // POST: Users/Create
+        // IAction to load Users.csv
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadUsers(IFormFile csvFile)
+        {
+            if (csvFile == null || csvFile.Length == 0)
+            {
+                ModelState.AddModelError("", "CSV file is required.");
+                return View("Index");
+            }
+
+
+
+
+
+
+
+        // POST: Users/Create
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
         {
             try
@@ -184,6 +207,8 @@ namespace DatingManagementSystem.Controllers
                 return View(user);
             }
         }
+
+
 
         //Login Functionality
         [HttpPost]
@@ -281,6 +306,7 @@ namespace DatingManagementSystem.Controllers
 
             _context.CompatibilityScores.AddRange(computedScores);
             _context.SaveChanges();
+
         }
 
         //Calculating Jaccard Similarity
@@ -355,13 +381,7 @@ namespace DatingManagementSystem.Controllers
                 sortedUsers.Add((userId, score));
             }
 
-            // Define a compatibility threshold to filter users
-            double compatibilityThreshold = 0.1; // Set the threshold here
-            var userIds = sortedUsers
-                .Where(u => u.Score >= compatibilityThreshold) // Only include users above threshold
-                .Select(u => u.UserId)
-                .ToList();
-
+            var userIds = sortedUsers.Select(u => u.UserId).ToList();
             var users = await _context.Users
                 .Where(u => userIds.Contains(u.UserID))
                 .Select(u => new
