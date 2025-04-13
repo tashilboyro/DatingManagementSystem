@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authentication;
 using CsvHelper;
 using CsvHelper.Configuration;
 using System.Globalization;
+using static DatingManagementSystem.Models.User;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -476,6 +477,38 @@ namespace DatingManagementSystem.Controllers
                 results = sortedResults
             });
         }
-              
+        [HttpPost]
+        public async Task<IActionResult> SkipUser(int skippedUserId)
+        {
+            try
+            {
+                // Get the logged-in user's ID
+                int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
+
+                // Find and remove compatibility scores between these users
+                var compatibilityScores = await _context.CompatibilityScores
+                    .Where(cs => (cs.User1Id == loggedInUserId && cs.User2Id == skippedUserId) ||
+                                (cs.User1Id == skippedUserId && cs.User2Id == loggedInUserId))
+                    .ToListAsync();
+
+                if (compatibilityScores.Any())
+                {
+                    _context.CompatibilityScores.RemoveRange(compatibilityScores);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"User {loggedInUserId} skipped user {skippedUserId}. Removed compatibility scores.");
+
+                    return Json(new { success = true, message = "User skipped successfully" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "No compatibility scores found between users" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error skipping user: {ex.Message}");
+                return Json(new { success = false, message = "Error skipping user" });
+            }
+        }
     }
 }

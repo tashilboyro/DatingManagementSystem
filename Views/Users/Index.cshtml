@@ -10,6 +10,8 @@
 	var userID = Context.Session.GetString("UserID");
 }
 
+@Html.AntiForgeryToken()
+
 <!-- Swiper Container -->
 <div class="swiper-container">
 	<div class="swiper-wrapper">
@@ -108,6 +110,53 @@
 
 		} catch (error) {
 			console.error("Error fetching compatibility scores or user details:", error);
+		}
+	}
+		// Function to handle skipping a user
+	async function skipUser(skippedUserId) {
+		try {
+			// Confirm before removing
+			if (!confirm("Are you sure you want to skip this user?")) {
+				return;
+			}
+
+			// Send request to the server to skip the user
+			const response = await fetch('/Users/SkipUser', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+				},
+				body: JSON.stringify({ skippedUserId: skippedUserId })
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				// Remove the user from the UI
+				const slideToRemove = document.querySelector(`.swiper-slide[data-user-id="${skippedUserId}"]`);
+				if (slideToRemove) {
+					// Get the swiper instance
+					const swiperInstance = document.querySelector('.swiper-container').swiper;
+
+					// Find the index of the slide to remove
+					const slideIndex = Array.from(slideToRemove.parentElement.children).indexOf(slideToRemove);
+
+					// Remove the slide from the DOM
+					slideToRemove.remove();
+
+					// Update the swiper to reflect the change
+					swiperInstance.update();
+
+					// Show a success message
+					alert("User skipped successfully");
+				}
+			} else {
+				alert("Error skipping user: " + result.message);
+			}
+		} catch (error) {
+			console.error("Error skipping user:", error);
+			alert("Error skipping user. Please try again.");
 		}
 	}
 </script>
