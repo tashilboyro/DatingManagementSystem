@@ -16,19 +16,19 @@
 }
 .email label{
     margin-top:3%;
-    margin-left: 15%;
+    margin-left: 23%;
     font-size: 22px;
 }
 .email input{
     padding:1.5%;
-    margin-left: 12%;
-    width: 75%;
+    margin-left: 22%;
+    width: 55%;
     background: transparent;
     border: 1px solid black;
     margin-bottom: 2%;
 }
 .password label {
-    margin-left: 15%;
+    margin-left: 23%;
     font-size: 22px;
 }
 ::placeholder{
@@ -36,8 +36,8 @@
 }
 .password input {
     padding: 1.5%;
-    margin-left: 12%;
-    width: 75%;
+    margin-left: 22%;
+    width: 55%;
     background: transparent;
     border: 1px solid black;
     margin-bottom: 2%;

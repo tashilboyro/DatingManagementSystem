@@ -1,4 +1,4 @@
-﻿@model DatingManagementSystem.Models.User
+@model DatingManagementSystem.Models.User
 
 @{
     ViewData["Title"] = "Login";
@@ -35,24 +35,24 @@
         @if (TempData["LoginError"]?.ToString() == "true")
         {
             <text>
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops...',
-                        text: 'Wrong email or password!',
-                        confirmButtonColor: '#3085d6'
-                    });
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Oops...',
+                            text: 'Wrong email or password!',
+                            confirmButtonColor: '#3085d6'
+                        });
             </text>
         }
 
         @if (TempData["LogoutSuccess"]?.ToString() == "true")
         {
             <text>
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Logout Successful!',
-                        text: 'You have been successfully logged out.',
-                        confirmButtonColor: '#3085d6'
-                    });
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Logout Successful!',
+                            text: 'You have been successfully logged out.',
+                            confirmButtonColor: '#3085d6'
+                        });
             </text>
         }
     </script>
