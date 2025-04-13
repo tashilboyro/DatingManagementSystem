@@ -169,12 +169,21 @@ namespace DatingManagementSystem.Controllers
                 return View("Create");
             }
 
+            // Filter out users with duplicate emails
+            var existingEmails = _context.Users.Select(u => u.Email.ToLower()).ToHashSet();
+            var validUsers = users.Where(u => !existingEmails.Contains(u.Email.ToLower())).ToList();
+
+            if (validUsers.Count < users.Count)
+            {
+                _logger.LogWarning("Some users were skipped due to duplicate email addresses.");
+            }
+
             // Add valid users to the database
-            _context.Users.AddRange(users);
+            _context.Users.AddRange(validUsers);
             await _context.SaveChangesAsync();
 
-            // Compute compatibility for all users
-            foreach (var user in users)
+            // Compute compatibility for all valid users
+            foreach (var user in validUsers)
             {
                 ComputeCompatibility(user);
             }
