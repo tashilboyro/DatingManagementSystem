@@ -109,50 +109,5 @@
 		} catch (error) {
 			console.error("Error fetching compatibility scores or user details:", error);
 		}
-	// Skip user function - removes from UI, MaxHeap, and Hashtable
-	async function skipUser(userIdToSkip, buttonElement) {
-		try {
-			// Disable the button to prevent multiple clicks
-			buttonElement.disabled = true;
-			buttonElement.textContent = "Skipping...";
-
-			// Find the slide containing this user
-			const slide = document.querySelector(`.swiper-slide[data-user-id="${userIdToSkip}"]`);
-			if (!slide) {
-				console.error("Could not find slide for user ID:", userIdToSkip);
-				return;
-			}
-
-			// Add visual feedback
-			slide.style.opacity = "0.5";
-
-			// Call the server to remove from database (which affects MaxHeap and Hashtable)
-			const response = await fetch('/Users/SkipUser', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-				},
-				body: JSON.stringify({ userIdToSkip })
-			});
-
-			const result = await response.json();
-
-			if (result.success) {
-				console.log(result.message);
-
-				// Remove the slide from Swiper
-				const slideIndex = Array.from(slide.parentNode.children).indexOf(slide);
-				swiper.removeSlide(slideIndex);
-
-				// Update Swiper to reflect changes
-				swiper.update();
-				} 
-			catch (error) {
-			console.error("Error skipping user:", error);
-			// Restore the button state
-			buttonElement.disabled = false;
-			buttonElement.textContent = "Skip ❌";
-		}
 	}
 </script>
