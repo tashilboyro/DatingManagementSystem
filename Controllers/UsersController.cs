@@ -296,6 +296,10 @@ namespace DatingManagementSystem.Controllers
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
+            // Clear session storage
+            HttpContext.Session.Clear();
+
+            //Sign out user 
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login", "Users");
         }

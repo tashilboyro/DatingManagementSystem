@@ -1,66 +1,20 @@
 ﻿.container {
-    max-width: 1000px;
+    width: 1000px;
 }
 
 .card {
-    background: white;
+    height: 60%;
+    background: #ddbcf5;
     border-radius: 20px;
     border: none;
 }
 
 h4 {
+    margin-top: 1%;
     font-weight: bold;
     text-align: center;
     margin-bottom: 0px;
 }
-
-label {
-    font-size: 1rem;
-    color: #555;
-    margin-bottom: 5px;
-    display: block;
-}
-
-input.form-control,
-select.form-select,
-textarea.form-control {
-    padding: 14px 20px;
-    border: 2px solid #eee;
-    transition: border 0.3s ease, box-shadow 0.3s ease;
-    font-size: 1rem;
-}
-
-    input.form-control:focus,
-    select.form-select:focus,
-    textarea.form-control:focus {
-        border: 2px solid #ff758c;
-        box-shadow: 0 0 10px rgba(255, 117, 140, 0.3);
-        outline: none;
-    }
-
-.rounded-pill {
-    border-radius: 50px !important;
-}
-
-.btn-secondary {
-    background: #ccc;
-    border: none;
-    padding: 12px 30px;
-    font-weight: bold;
-    letter-spacing: 1px;
-}
-
-.btn-outline-secondary {
-    color: #555;
-    border: 2px solid #555;
-    padding: 10px 25px;
-    transition: all 0.3s ease;
-}
-
-    .btn-outline-secondary:hover {
-        background: #555;
-        color: white;
-    }
 
 .form-section {
     display: none;
@@ -83,6 +37,71 @@ textarea.form-control {
     }
 }
 
+.section {
+    display: flex;
+    align-items: center;
+    margin: 25px 0;
+    padding: 0 10%;
+}
+
+    .section label {
+        flex: 0 0 30%;
+        text-align: right;
+        margin-right: 50px;
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #555;
+    }
+
+    .section input,
+    .section select,
+    .section textarea {
+        width: 40%;
+        padding: 10px 25px;
+        border: 1px solid black;
+        border-radius: 25px;
+        background: transparent;
+        font-size: 1rem;
+    }
+
+    .section select {
+        width: 40%;
+    }
+
+
+input[type="file"] {
+    background: transparent;
+    padding: 10px 15px;
+    border: 2px dashed black;
+    text-align: center;
+    transition: border 0.3s ease;
+    width: 27%;
+    margin: 20px auto;
+    display: block;
+}
+
+    input[type="file"]:hover {
+        border-color: #ff758c;
+    }
+
+.btn-secondary {
+    border-radius: 25px;
+    background: #ff758c;
+    border: none;
+    padding: 12px 30px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.btn-primary {
+    border-radius: 25px;
+    width: 14%;
+    background: #ff758c;
+    border: none;
+    padding: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
 .d-flex {
     gap: 10px;
 }
@@ -96,19 +115,23 @@ textarea.form-control {
     display: inline-block;
 }
 
-input[type="file"] {
-    background: #f9f9f9;
-    padding: 10px 15px;
-    border: 2px dashed #ccc;
-    text-align: center;
-    transition: border 0.3s ease;
-}
-
-    input[type="file"]:hover {
-        border-color: #ff758c;
-    }
-
 .text-danger {
     font-size: 0.85rem;
     margin-top: 5px;
 }
+
+
+.profile-picture-upload input[type="file"] {
+    background: transparent;
+    padding: 10px 15px;
+    border: 2px dashed black;
+    text-align: center;
+    transition: border 0.3s ease;
+    width: 80%;
+    margin-left: 0%;
+    display: block;
+}
+
+    .profile-picture-upload input[type="file"]:hover {
+        border-color: #ff758c;
+    }
