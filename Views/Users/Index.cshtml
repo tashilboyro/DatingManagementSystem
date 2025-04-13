@@ -1,4 +1,4 @@
-﻿@model IEnumerable<DatingManagementSystem.Models.User>
+@model IEnumerable<DatingManagementSystem.Models.User>
 
 @{
 	ViewData["Title"] = "Users List";
@@ -53,7 +53,7 @@
 		const userId = sessionStorage.getItem("UserID");
 
 		try {
-			const response = await fetch(`/Users/GetSortedCompatibilityScoresForLoggedInUser`);
+			const response = await fetch(/Users/GetSortedCompatibilityScoresForLoggedInUser);
 			const result = await response.json();
 
 			console.log("Fetched sorted scores:", result.results);
