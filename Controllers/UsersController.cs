@@ -476,6 +476,50 @@ namespace DatingManagementSystem.Controllers
                 results = sortedResults
             });
         }
+        
+        [HttpPost]
+        public async Task<IActionResult> SkipUser(int userIdToSkip)
+        {
+            try
+            {
+                // Get the logged-in user's ID from the session
+                if (!HttpContext.Session.TryGetValue("UserID", out byte[] userIdBytes) || userIdBytes == null)
+                {
+                    return Json(new { success = false, message = "User not logged in" });
+                }
+
+                int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
+
+                // 1. Remove from database - delete compatibility scores between these users
+                var compatibilityScoresToRemove = await _context.CompatibilityScores
+                    .Where(cs =>
+                        (cs.User1Id == loggedInUserId && cs.User2Id == userIdToSkip) ||
+                        (cs.User1Id == userIdToSkip && cs.User2Id == loggedInUserId))
+                    .ToListAsync();
+
+                if (compatibilityScoresToRemove.Any())
+                {
+                    _context.CompatibilityScores.RemoveRange(compatibilityScoresToRemove);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"User {loggedInUserId} skipped user {userIdToSkip}");
+                }
+
+                // 2. The MaxHeap and Hashtable are regenerated each time GetSortedCompatibilityScoresForLoggedInUser is called
+                // So the skipped user will no longer appear in future calls to that method
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"User {userIdToSkip} has been skipped",
+                    skippedUserId = userIdToSkip
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error skipping user: {ex.Message}");
+                return Json(new { success = false, message = "An error occurred while skipping the user" });
+            }
+        }
 
     }
 }
