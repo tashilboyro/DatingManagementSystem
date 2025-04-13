@@ -178,8 +178,7 @@ namespace DatingManagementSystem.Controllers
 
             // Add valid users to the database
             _context.Users.AddRange(users);
-            var existingEmails = _context.Users.Select(u => u.Email).ToHashSet();
-            users = users.Where(u => !existingEmails.Contains(u.Email)).ToList();
+            await _context.SaveChangesAsync();
 
             // Compute compatibility for all users
             foreach (var user in users)
