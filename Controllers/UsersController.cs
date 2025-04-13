@@ -327,6 +327,9 @@ namespace DatingManagementSystem.Controllers
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
+            // Clear session storage
+            HttpContext.Session.Clear();
+
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
             // Set TempData for successful logout
