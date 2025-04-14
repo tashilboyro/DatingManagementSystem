@@ -532,7 +532,6 @@ namespace DatingManagementSystem.Controllers
                 {
                     UserId = loggedInUserId,
                     SkippedUserId = model.SkippedUserId,
-                    SkippedDate = DateTime.UtcNow
                 };
 
                 // Check if this user was already skipped to avoid duplicate entries
@@ -590,6 +589,5 @@ namespace DatingManagementSystem.Controllers
         public int Id { get; set; }
         public int UserId { get; set; }
         public int SkippedUserId { get; set; }
-        public DateTime SkippedDate { get; set; }
     }
 }
