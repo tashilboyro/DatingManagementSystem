@@ -491,6 +491,7 @@ namespace DatingManagementSystem.Controllers
                 message = $"Duplicate compatibility score pairs handled. Unique pairs processed: {processedPairs.Count}",
                 results = sortedResults
             });
+
         }
 
         // Improved SkipUser method
