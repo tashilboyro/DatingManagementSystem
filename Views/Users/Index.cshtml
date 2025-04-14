@@ -106,6 +106,7 @@
                 const user = item.user;
 
                 if (user) {
+                     console.log("User object structure:", user);
                     // Default avatar path from app configuration or constants
                     const defaultAvatarPath = "/images/default-avatar.png";
 
@@ -197,7 +198,7 @@
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': antiForgeryToken
                 },
-                body: JSON.stringify({ skippedUserId: skippedUserId })
+                body: JSON.stringify({ SkippedUserId: skippedUserId })
             });
 
             if (!response.ok) {
