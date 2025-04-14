@@ -230,8 +230,6 @@
 
                     // Show a success message
                     alert("User skipped successfully");
-                    // Refresh the compatibility scores to remove the skipped user
-                    fetchCompatibilityScores();
                 }
             } else {
                 showError("Error skipping user: " + (result.message || "Unknown error"));
