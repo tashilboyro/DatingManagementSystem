@@ -148,26 +148,43 @@ namespace DatingManagementSystem.Controllers
                 return View("Index");
             }
 
-            var users = new List<User>();
+            var usersToAdd = new List<User>();
 
             using var reader = new StreamReader(csvFile.OpenReadStream());
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                HasHeaderRecord = true,  // Assumes the CSV file has a header
-                Delimiter = ",", // Assumes CSV file uses comma as delimiter
-                Quote = '"', // Handle quoted fields like Interests that contain commas
+                HasHeaderRecord = true,
+                Delimiter = ",",
+                Quote = '"',
             });
 
             try
             {
                 csv.Context.RegisterClassMap<UserMap>();
-
-                // Read records and parse the rows into User objects
                 var records = csv.GetRecords<User>();
+
+                // Keep track of names seen in the current CSV
+                var csvNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Also fetch existing names from the DB to avoid inserting duplicates
+                var existingNamesInDb = await _context.Users
+                    .Select(u => u.FirstName.ToLower() + " " + u.LastName.ToLower())
+                    .ToListAsync();
+                var dbNameSet = new HashSet<string>(existingNamesInDb);
 
                 foreach (var record in records)
                 {
-                    users.Add(record);
+                    string fullName = (record.FirstName + " " + record.LastName).ToLower();
+
+                    // Skip if it's a duplicate in CSV or already in the database
+                    if (csvNameSet.Contains(fullName) || dbNameSet.Contains(fullName))
+                    {
+                        _logger.LogInformation($"Duplicate skipped: {record.FirstName} {record.LastName}");
+                        continue;
+                    }
+
+                    usersToAdd.Add(record);
+                    csvNameSet.Add(fullName);
                 }
             }
             catch (CsvHelperException ex)
@@ -177,11 +194,11 @@ namespace DatingManagementSystem.Controllers
             }
 
             // Add valid users to the database
-            _context.Users.AddRange(users);
+            _context.Users.AddRange(usersToAdd);
             await _context.SaveChangesAsync();
 
-            // Compute compatibility for all users
-            foreach (var user in users)
+            // Compute compatibility for all newly added users
+            foreach (var user in usersToAdd)
             {
                 ComputeCompatibility(user);
             }
@@ -203,12 +220,21 @@ namespace DatingManagementSystem.Controllers
 
                 // Check if the FirstName already exists in the database
                 var existingUser = await _context.Users
-                    .FirstOrDefaultAsync(u => u.FirstName.ToLower() == user.FirstName.ToLower());
+                    .FirstOrDefaultAsync(u =>
+                        u.FirstName.ToLower() == user.FirstName.ToLower() &&
+                        u.LastName.ToLower() == user.LastName.ToLower());
+
                 if (existingUser != null)
                 {
-                    ModelState.AddModelError("FirstName", "This First Name is already taken. Please choose another.");
-                    return View(user);  // Return to the view with the error message   
+                    TempData["DuplicateNameError"] = "true";
+
+                    // Clear only the FirstName and LastName so user can input new ones
+                    user.FirstName = string.Empty;
+                    user.LastName = string.Empty;
+
+                    return View(user);  // SweetAlert will be triggered from the view
                 }
+
 
                 if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
                 {
@@ -262,12 +288,12 @@ namespace DatingManagementSystem.Controllers
                 var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
                 if (user != null)
                 {
-                    // Authentication logics
+                    // Authentication logic
                     var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim("UserID", user.UserID.ToString()) // Store User ID
+                new Claim("UserID", user.UserID.ToString())
             };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -277,26 +303,41 @@ namespace DatingManagementSystem.Controllers
                                                   new ClaimsPrincipal(claimsIdentity),
                                                   authProperties);
 
-                    // Store user details in session
-                    _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
-                    HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
-                    HttpContext.Session.SetString("UserEmail", user.Email);
+                    // Session storage
+                    // Use _httpContextAccessor for all session access
 
+
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserName", user.FirstName + " " + user.LastName);
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserEmail", user.Email);
+
+
+                    // Set TempData for successful login
+                    TempData["LoginSuccess"] = "true";
                     return RedirectToAction(nameof(Index));
                 }
                 else
                 {
-                    ModelState.AddModelError("", "Invalid email or password.");
+                    TempData["LoginError"] = "true";
+                    return RedirectToAction(nameof(Login));
                 }
             }
+
             return View(model);
         }
+
 
         //Logout Functionality
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
+            // Clear session storage
+            HttpContext.Session.Clear();
+
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Set TempData for successful logout
+            TempData["LogoutSuccess"] = "true";
             return RedirectToAction("Login", "Users");
         }
 
