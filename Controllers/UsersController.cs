@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,7 @@ using Microsoft.AspNetCore.Authentication;
 using CsvHelper;
 using CsvHelper.Configuration;
 using System.Globalization;
+using static DatingManagementSystem.Models.User;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -30,9 +32,6 @@ namespace DatingManagementSystem.Controllers
             _context = context;
             _httpContextAccessor = httpContextAccessor;
         }
-
-
-
 
         // IAction for Login
         public IActionResult Login()
@@ -50,7 +49,6 @@ namespace DatingManagementSystem.Controllers
             return View();
         }
 
-
         // IAction for Index
         public async Task<IActionResult> Index()
         {
@@ -58,7 +56,6 @@ namespace DatingManagementSystem.Controllers
         }
 
         // IAction for details
-
         public async Task<IActionResult> GetUserDetails(int? id)
         {
             if (id == null)
@@ -75,7 +72,6 @@ namespace DatingManagementSystem.Controllers
 
             return View(user);
         }
-
 
         // IAction for Delete
         public async Task<IActionResult> Delete(int? id)
@@ -116,7 +112,6 @@ namespace DatingManagementSystem.Controllers
         }
 
         // IAction for Compatibility score to test on Postman
-
         [HttpGet]
         public IActionResult GetCompatibilityScores()
         {
@@ -134,7 +129,6 @@ namespace DatingManagementSystem.Controllers
             }
 
             return File(user.ProfilePicture, "image/*"); // Assuming the images are JPGs
-
         }
 
         // IAction to load Users.csv
@@ -148,43 +142,26 @@ namespace DatingManagementSystem.Controllers
                 return View("Index");
             }
 
-            var usersToAdd = new List<User>();
+            var users = new List<User>();
 
             using var reader = new StreamReader(csvFile.OpenReadStream());
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                HasHeaderRecord = true,
-                Delimiter = ",",
-                Quote = '"',
+                HasHeaderRecord = true,  // Assumes the CSV file has a header
+                Delimiter = ",", // Assumes CSV file uses comma as delimiter
+                Quote = '"', // Handle quoted fields like Interests that contain commas
             });
 
             try
             {
                 csv.Context.RegisterClassMap<UserMap>();
+
+                // Read records and parse the rows into User objects
                 var records = csv.GetRecords<User>();
-
-                // Keep track of names seen in the current CSV
-                var csvNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                // Also fetch existing names from the DB to avoid inserting duplicates
-                var existingNamesInDb = await _context.Users
-                    .Select(u => u.FirstName.ToLower() + " " + u.LastName.ToLower())
-                    .ToListAsync();
-                var dbNameSet = new HashSet<string>(existingNamesInDb);
 
                 foreach (var record in records)
                 {
-                    string fullName = (record.FirstName + " " + record.LastName).ToLower();
-
-                    // Skip if it's a duplicate in CSV or already in the database
-                    if (csvNameSet.Contains(fullName) || dbNameSet.Contains(fullName))
-                    {
-                        _logger.LogInformation($"Duplicate skipped: {record.FirstName} {record.LastName}");
-                        continue;
-                    }
-
-                    usersToAdd.Add(record);
-                    csvNameSet.Add(fullName);
+                    users.Add(record);
                 }
             }
             catch (CsvHelperException ex)
@@ -193,12 +170,21 @@ namespace DatingManagementSystem.Controllers
                 return View("Create");
             }
 
+            // Filter out users with duplicate emails
+            var existingEmails = _context.Users.Select(u => u.Email.ToLower()).ToHashSet();
+            var validUsers = users.Where(u => !existingEmails.Contains(u.Email.ToLower())).ToList();
+
+            if (validUsers.Count < users.Count)
+            {
+                _logger.LogWarning("Some users were skipped due to duplicate email addresses.");
+            }
+
             // Add valid users to the database
-            _context.Users.AddRange(usersToAdd);
+            _context.Users.AddRange(validUsers);
             await _context.SaveChangesAsync();
 
-            // Compute compatibility for all newly added users
-            foreach (var user in usersToAdd)
+            // Compute compatibility for all valid users
+            foreach (var user in validUsers)
             {
                 ComputeCompatibility(user);
             }
@@ -206,12 +192,9 @@ namespace DatingManagementSystem.Controllers
             return RedirectToAction(nameof(Login));
         }
 
-
         // POST: Users/Create
-
         [HttpPost]
         [ValidateAntiForgeryToken]
-
         public async Task<IActionResult> Create([Bind("FirstName,LastName,Age,Gender,Email,Password,Interests,Bio,CreatedAt")] User user, IFormFile? ProfilePictureFile)
         {
             try
@@ -220,21 +203,12 @@ namespace DatingManagementSystem.Controllers
 
                 // Check if the FirstName already exists in the database
                 var existingUser = await _context.Users
-                    .FirstOrDefaultAsync(u =>
-                        u.FirstName.ToLower() == user.FirstName.ToLower() &&
-                        u.LastName.ToLower() == user.LastName.ToLower());
-
+                    .FirstOrDefaultAsync(u => u.FirstName.ToLower() == user.FirstName.ToLower());
                 if (existingUser != null)
                 {
-                    TempData["DuplicateNameError"] = "true";
-
-                    // Clear only the FirstName and LastName so user can input new ones
-                    user.FirstName = string.Empty;
-                    user.LastName = string.Empty;
-
-                    return View(user);  // SweetAlert will be triggered from the view
+                    ModelState.AddModelError("FirstName", "This First Name is already taken. Please choose another.");
+                    return View(user);  // Return to the view with the error message   
                 }
-
 
                 if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
                 {
@@ -276,8 +250,6 @@ namespace DatingManagementSystem.Controllers
             }
         }
 
-
-
         //Login Functionality
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -288,13 +260,13 @@ namespace DatingManagementSystem.Controllers
                 var user = _context.Users.FirstOrDefault(u => u.Email == model.Email && u.Password == model.Password);
                 if (user != null)
                 {
-                    // Authentication logic
+                    // Authentication logics
                     var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim("UserID", user.UserID.ToString())
-            };
+                    {
+                        new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
+                        new Claim(ClaimTypes.Email, user.Email),
+                        new Claim("UserID", user.UserID.ToString()) // Store User ID
+                    };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                     var authProperties = new AuthenticationProperties { IsPersistent = true };
@@ -303,41 +275,26 @@ namespace DatingManagementSystem.Controllers
                                                   new ClaimsPrincipal(claimsIdentity),
                                                   authProperties);
 
-                    // Session storage
-                    // Use _httpContextAccessor for all session access
-
-
+                    // Store user details in session
                     _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
-                    _httpContextAccessor.HttpContext?.Session.SetString("UserName", user.FirstName + " " + user.LastName);
-                    _httpContextAccessor.HttpContext?.Session.SetString("UserEmail", user.Email);
+                    HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
+                    HttpContext.Session.SetString("UserEmail", user.Email);
 
-
-                    // Set TempData for successful login
-                    TempData["LoginSuccess"] = "true";
                     return RedirectToAction(nameof(Index));
                 }
                 else
                 {
-                    TempData["LoginError"] = "true";
-                    return RedirectToAction(nameof(Login));
+                    ModelState.AddModelError("", "Invalid email or password.");
                 }
             }
-
             return View(model);
         }
-
 
         //Logout Functionality
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
-            // Clear session storage
-            HttpContext.Session.Clear();
-
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-            // Set TempData for successful logout
-            TempData["LogoutSuccess"] = "true";
             return RedirectToAction("Login", "Users");
         }
 
@@ -346,7 +303,6 @@ namespace DatingManagementSystem.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
-
 
         public static class CompatibilityStore
         {
@@ -390,12 +346,9 @@ namespace DatingManagementSystem.Controllers
 
             _context.CompatibilityScores.AddRange(computedScores);
             _context.SaveChanges();
-
         }
 
-
         //Calculating Jaccard Similarity
-
         private double CalculateJaccardSimilarity(string interests1, string interests2)
         {
             if (string.IsNullOrWhiteSpace(interests1) || string.IsNullOrWhiteSpace(interests2))
@@ -416,20 +369,39 @@ namespace DatingManagementSystem.Controllers
             return union == 0 ? 0 : (double)intersection / union;
         }
 
-
-
-
-        // Endpoint to test if the hashtable is working correctly, Sort the Compatibility Scores
-
+        // Endpoint to get sorted compatibility scores for logged-in user
         [HttpGet]
-
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
-            int loggedInUserId = int.Parse(HttpContext.Session.GetString("UserID"));
+            // Validate session data
+            if (!HttpContext.Session.TryGetValue("UserID", out var userIdBytes) || userIdBytes == null)
+            {
+                return Json(new { success = false, message = "User session expired. Please log in again." });
+            }
+            var userIdString = System.Text.Encoding.UTF8.GetString(userIdBytes);
 
+            if (!int.TryParse(userIdString, out int loggedInUserId))
+            {
+                return Json(new { success = false, message = "Invalid user ID. Please log in again." });
+            }
+
+            // Get all compatibility scores for the logged-in user
             var compatibilityScores = await _context.CompatibilityScores
                 .Where(cs => cs.User1Id == loggedInUserId || cs.User2Id == loggedInUserId)
                 .ToListAsync();
+
+            // Get the list of users the logged-in user has skipped
+            var skippedUserIds = await _context.SkippedUsers
+                .Where(su => su.UserId == loggedInUserId)
+                .Select(su => su.SkippedUserId)
+                .ToListAsync();
+            // Filter out skipped users
+            var filteredCompatibilityScores = compatibilityScores
+                .Where(cs => !skippedUserIds.Contains(cs.User1Id == loggedInUserId ? cs.User2Id : cs.User1Id))
+                .ToList();
+
+            // Ensure skippedUserIds contains only valid integers
+            skippedUserIds = skippedUserIds.Where(id => id > 0).ToList();
 
             Hashtable compatibilityScoresHashtable = new Hashtable();
             HashSet<(int, int)> processedPairs = new(); // Track unique matchups
@@ -446,8 +418,12 @@ namespace DatingManagementSystem.Controllers
                 {
                     int pairedUserId = uid1 == loggedInUserId ? uid2 : uid1;
 
-                    // Only add if it's the first time this unique pair shows up
-                    compatibilityScoresHashtable[pairedUserId] = score.Score;
+                    // Skip users that the logged-in user has already skipped
+                    if (!skippedUserIds.Contains(pairedUserId))
+                    {
+                        // Only add if it's the first time this unique pair shows up
+                        compatibilityScoresHashtable[pairedUserId] = score.Score;
+                    }
                     processedPairs.Add(pairKey);
                 }
             }
@@ -516,7 +492,109 @@ namespace DatingManagementSystem.Controllers
                 message = $"Duplicate compatibility score pairs handled. Unique pairs processed: {processedPairs.Count}",
                 results = sortedResults
             });
+
+        }
+
+        // Improved SkipUser method
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SkipUser([FromBody] SkipUserModel model)
+        {
+            try
+            {
+                if (model == null || model.SkippedUserId <= 0)
+                {
+                    return Json(new { success = false, message = "Invalid user ID provided" });
+                }
+
+                // Validate that we have a user ID in session
+                if (!HttpContext.Session.TryGetValue("UserID", out var userIdBytes) || userIdBytes == null)
+                {
+                    return Json(new { success = false, message = "User session expired. Please log in again." });
+                }
+                var userIdString = System.Text.Encoding.UTF8.GetString(userIdBytes);
+
+                // Parse the user ID
+                if (!int.TryParse(userIdString, out int loggedInUserId))
+                {
+                    return Json(new { success = false, message = "Invalid user ID. Please log in again." });
+                }
+
+                // Validate the skipped user exists
+                var skippedUser = await _context.Users.FindAsync(model.SkippedUserId);
+                if (skippedUser == null)
+                {
+                    return Json(new { success = false, message = "Selected user not found" });
+                }
+
+                // Use the execution strategy to handle the transaction
+                var strategy = _context.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        // Find and remove compatibility scores between these users
+                        var compatibilityScores = await _context.CompatibilityScores
+                            .Where(cs => (cs.User1Id == loggedInUserId && cs.User2Id == model.SkippedUserId) ||
+                                         (cs.User1Id == model.SkippedUserId && cs.User2Id == loggedInUserId))
+                            .ToListAsync();
+
+                        // Create a record of the skip to prevent future matching
+                        var skippedUserRecord = new SkippedUser
+                        {
+                            UserId = loggedInUserId,
+                            SkippedUserId = model.SkippedUserId,
+                        };
+
+                        // Check if this user was already skipped to avoid duplicate entries
+                        var existingSkipRecord = await _context.SkippedUsers
+                            .FirstOrDefaultAsync(su => su.UserId == loggedInUserId && su.SkippedUserId == model.SkippedUserId);
+
+                        // Remove compatibility scores if they exist
+                        if (compatibilityScores.Any())
+                        {
+                            _context.CompatibilityScores.RemoveRange(compatibilityScores);
+                        }
+
+                        // Add skip record if it doesn't exist
+                        if (existingSkipRecord == null)
+                        {
+                            _context.SkippedUsers.Add(skippedUserRecord);
+                        }
+
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
+
+                _logger.LogInformation($"User {loggedInUserId} skipped user {model.SkippedUserId}.");
+                return Json(new { success = true, message = "User skipped successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error skipping user: {ex.Message}");
+                return Json(new { success = false, message = $"Error skipping user: {ex.Message}" });
+            }
         }
 
     }
-}
+
+    // Define model for SkipUser to properly bind from JSON request
+    public class SkipUserModel
+    {
+        public int SkippedUserId { get; set; }
+    }
+
+    // Model to track skipped users
+    public class SkippedUser
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int SkippedUserId { get; set; }
+    }
