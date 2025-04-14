@@ -53,9 +53,10 @@
 		const userId = sessionStorage.getItem("UserID");
 
 		try {
-			const response = await fetch(/Users/GetSortedCompatibilityScoresForLoggedInUser);
+			const response = await fetch('/Users/GetSortedCompatibilityScoresForLoggedInUser');
 			const result = await response.json();
 
+			console.log(result.message);
 			console.log("Fetched sorted scores:", result.results);
 
 			swiperWrapper.innerHTML = ""; // Clear existing slides

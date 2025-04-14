@@ -304,9 +304,13 @@ namespace DatingManagementSystem.Controllers
                                                   authProperties);
 
                     // Session storage
+                    // Use _httpContextAccessor for all session access
+
+
                     _httpContextAccessor.HttpContext?.Session.SetString("UserID", user.UserID.ToString());
-                    HttpContext.Session.SetString("UserName", user.FirstName + " " + user.LastName);
-                    HttpContext.Session.SetString("UserEmail", user.Email);
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserName", user.FirstName + " " + user.LastName);
+                    _httpContextAccessor.HttpContext?.Session.SetString("UserEmail", user.Email);
+
 
                     // Set TempData for successful login
                     TempData["LoginSuccess"] = "true";
