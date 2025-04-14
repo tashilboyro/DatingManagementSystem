@@ -373,7 +373,6 @@ namespace DatingManagementSystem.Controllers
         public async Task<IActionResult> GetSortedCompatibilityScoresForLoggedInUser()
         {
             // Validate session data
-            
             if (!HttpContext.Session.TryGetValue("UserID", out var userIdBytes) || userIdBytes == null)
             {
                 return Json(new { success = false, message = "User session expired. Please log in again." });
@@ -395,6 +394,9 @@ namespace DatingManagementSystem.Controllers
                 .Where(su => su.UserId == loggedInUserId)
                 .Select(su => su.SkippedUserId)
                 .ToListAsync();
+
+            // Ensure skippedUserIds contains only valid integers
+            skippedUserIds = skippedUserIds.Where(id => id > 0).ToList();
 
             Hashtable compatibilityScoresHashtable = new Hashtable();
             HashSet<(int, int)> processedPairs = new(); // Track unique matchups
