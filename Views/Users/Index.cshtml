@@ -40,8 +40,6 @@
     const userName = "@userName";
     const userEmail = "@userEmail";
     const userID = "@userID";
-    const filteredUsers = users.filter(user => !skippedUserIds.includes(user.UserId));
-    console.log(filteredUsers);
 
     // Check if values exist before storing
     if (userName) sessionStorage.setItem("UserName", userName);
@@ -184,7 +182,7 @@
     async function skipUser(skippedUserId) {
         try {
             // Log the skippedUserId to debug
-            console.log("skippedUserId:", skippedUserId);
+             console.log("skippedUserId:", skippedUserId);
             // Confirm before removing
             if (!confirm("Are you sure you want to skip this user?")) {
                 return;
