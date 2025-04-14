@@ -17,7 +17,7 @@ the most compatible users with that logged in user is displayed on the user inte
 
 <br>
 
-2. Logged in users are stores in the session storage.
+2. Logged in users are stored in the session storage.
 
 <br>
 

@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -597,4 +598,3 @@ namespace DatingManagementSystem.Controllers
         public int UserId { get; set; }
         public int SkippedUserId { get; set; }
     }
-}
