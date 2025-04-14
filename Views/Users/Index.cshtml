@@ -149,6 +149,10 @@
         }
     }
 
+    document.addEventListener("DOMContentLoaded", function () {
+        fetchCompatibilityScores();
+    });
+
     function initializeSwiper() {
         // Destroy existing swiper instance if it exists
         if (swiperInstance) {

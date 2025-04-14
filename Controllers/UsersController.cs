@@ -394,6 +394,10 @@ namespace DatingManagementSystem.Controllers
                 .Where(su => su.UserId == loggedInUserId)
                 .Select(su => su.SkippedUserId)
                 .ToListAsync();
+            // Filter out skipped users
+            var filteredCompatibilityScores = compatibilityScores
+                .Where(cs => !skippedUserIds.Contains(cs.User1Id == loggedInUserId ? cs.User2Id : cs.User1Id))
+                .ToList();
 
             // Ensure skippedUserIds contains only valid integers
             skippedUserIds = skippedUserIds.Where(id => id > 0).ToList();
