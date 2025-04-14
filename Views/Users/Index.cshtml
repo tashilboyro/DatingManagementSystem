@@ -40,6 +40,8 @@
     const userName = "@userName";
     const userEmail = "@userEmail";
     const userID = "@userID";
+    const filteredUsers = users.filter(user => !skippedUserIds.includes(user.UserId));
+    console.log(filteredUsers);
 
     // Check if values exist before storing
     if (userName) sessionStorage.setItem("UserName", userName);
