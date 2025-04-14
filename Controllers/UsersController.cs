@@ -500,13 +500,11 @@ namespace DatingManagementSystem.Controllers
                 }
 
                 // Validate that we have a user ID in session
-                // With this:
-                 if (!HttpContext.Session.TryGetValue("UserID", out var userIdBytes) || userIdBytes == null)
-                 {
-                        return Json(new { success = false, message = "User session expired. Please log in again." });
-                 }
+                if (!HttpContext.Session.TryGetValue("UserID", out var userIdBytes) || userIdBytes == null)
+                {
+                    return Json(new { success = false, message = "User session expired. Please log in again." });
+                }
                 var userIdString = System.Text.Encoding.UTF8.GetString(userIdBytes);
-
 
                 // Parse the user ID
                 if (!int.TryParse(userIdString, out int loggedInUserId))
@@ -521,27 +519,30 @@ namespace DatingManagementSystem.Controllers
                     return Json(new { success = false, message = "Selected user not found" });
                 }
 
-                // Find and remove compatibility scores between these users
-                var compatibilityScores = await _context.CompatibilityScores
-                    .Where(cs => (cs.User1Id == loggedInUserId && cs.User2Id == model.SkippedUserId) ||
-                                (cs.User1Id == model.SkippedUserId && cs.User2Id == loggedInUserId))
-                    .ToListAsync();
-
-                // Create a record of the skip to prevent future matching
-                var skippedUserRecord = new SkippedUser
+                // Use the execution strategy to handle the transaction
+                var strategy = _context.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
                 {
-                    UserId = loggedInUserId,
-                    SkippedUserId = model.SkippedUserId,
-                };
-
-                // Check if this user was already skipped to avoid duplicate entries
-                var existingSkipRecord = await _context.SkippedUsers
-                    .FirstOrDefaultAsync(su => su.UserId == loggedInUserId && su.SkippedUserId == model.SkippedUserId);
-
-                using (var transaction = await _context.Database.BeginTransactionAsync())
-                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
                     try
                     {
+                        // Find and remove compatibility scores between these users
+                        var compatibilityScores = await _context.CompatibilityScores
+                            .Where(cs => (cs.User1Id == loggedInUserId && cs.User2Id == model.SkippedUserId) ||
+                                         (cs.User1Id == model.SkippedUserId && cs.User2Id == loggedInUserId))
+                            .ToListAsync();
+
+                        // Create a record of the skip to prevent future matching
+                        var skippedUserRecord = new SkippedUser
+                        {
+                            UserId = loggedInUserId,
+                            SkippedUserId = model.SkippedUserId,
+                        };
+
+                        // Check if this user was already skipped to avoid duplicate entries
+                        var existingSkipRecord = await _context.SkippedUsers
+                            .FirstOrDefaultAsync(su => su.UserId == loggedInUserId && su.SkippedUserId == model.SkippedUserId);
+
                         // Remove compatibility scores if they exist
                         if (compatibilityScores.Any())
                         {
@@ -556,18 +557,16 @@ namespace DatingManagementSystem.Controllers
 
                         await _context.SaveChangesAsync();
                         await transaction.CommitAsync();
-
-                        _logger.LogInformation($"User {loggedInUserId} skipped user {model.SkippedUserId}. Removed {compatibilityScores.Count} compatibility scores and created skip record.");
-
-                        return Json(new { success = true, message = "User skipped successfully" });
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         await transaction.RollbackAsync();
-                        _logger.LogError($"Transaction failed for skip operation: {ex.Message}");
                         throw;
                     }
-                }
+                });
+
+                _logger.LogInformation($"User {loggedInUserId} skipped user {model.SkippedUserId}.");
+                return Json(new { success = true, message = "User skipped successfully" });
             }
             catch (Exception ex)
             {
@@ -575,6 +574,7 @@ namespace DatingManagementSystem.Controllers
                 return Json(new { success = false, message = $"Error skipping user: {ex.Message}" });
             }
         }
+
     }
 
     // Define model for SkipUser to properly bind from JSON request
