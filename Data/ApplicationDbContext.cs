@@ -1,4 +1,4 @@
-﻿using DatingManagementSystem.Controllers;
+using DatingManagementSystem.Controllers;
 using DatingManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
 
