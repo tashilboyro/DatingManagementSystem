@@ -1,6 +1,5 @@
 ﻿using CsvHelper.Configuration;
 using DatingManagementSystem.Models;
-using System;
 
 public class UserMap : ClassMap<User>
 {
