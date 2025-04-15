@@ -1,6 +1,6 @@
-﻿using DatingManagementSystem.Models;
+﻿using DatingManagementSystem.Controllers;
+using DatingManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using static DatingManagementSystem.Controllers.UsersController;
 
 namespace DatingManagementSystem.Data
 {
@@ -10,6 +10,8 @@ namespace DatingManagementSystem.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<CompatibilityScore> CompatibilityScores { get; set; }
+        public DbSet<SkippedUser> SkippedUsers { get; set; }
+
 
     }
 }
