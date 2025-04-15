@@ -1,21 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using DatingManagementSystem.Data;
-using DatingManagementSystem.Models;
-using System.Collections.Concurrent;
-using System.Collections;
-using System.Security.Claims;
-using System.Diagnostics;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
 using CsvHelper;
 using CsvHelper.Configuration;
+using DatingManagementSystem.Data;
+using DatingManagementSystem.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Collections;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
+using System.Security.Claims;
 
 namespace DatingManagementSystem.Controllers
 {
@@ -57,72 +52,7 @@ namespace DatingManagementSystem.Controllers
             return View(await _context.Users.ToListAsync());
         }
 
-        // IAction for details
 
-        public async Task<IActionResult> GetUserDetails(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(m => m.UserID == id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return View(user);
-        }
-
-
-        // IAction for Delete
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(m => m.UserID == id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return View(user);
-        }
-
-        // IAction for delete function
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user != null)
-            {
-                _context.Users.Remove(user);
-            }
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
-
-        private bool UserExists(int id)
-        {
-            return _context.Users.Any(e => e.UserID == id);
-        }
-
-        // IAction for Compatibility score to test on Postman
-
-        [HttpGet]
-        public IActionResult GetCompatibilityScores()
-        {
-            var scores = _context.CompatibilityScores.ToList();
-            return Json(scores);
-        }
 
         // IAction to get profile pic
         public IActionResult GetProfilePicture(int id)
