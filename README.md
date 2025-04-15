@@ -3,27 +3,26 @@
 
  
 
-LoveBirds is a dating management system where users can find their perfect match.
+LoveBirds is a dating management system designed to help users discover their most compatible matches.
 
-Users may register and then log in. Upon registration, the compatibility score of that user is calculated
+New users can register and log in to the platform. Upon registration, a compatibility score is automatically calculated between the new user and all existing users in the LoveBirdsDatabase using an intelligent matching algorithm.
 
-against all the existing users in the database (LoveBirdsDatabase). Then upon login,
-
-the most compatible users with that logged in user is displayed on the user interface.
+When a user logs in, their top matches are displayed on the user interface. Users can remove a suggested match at any time by clicking the Skip button on the profile card.
 
  
 
 1. Registered users are stored in the `Users` table in the `LoveBirdsDatabase` database.
 
-<br>
 
 2. Logged in users are stored in the session storage.
 
-<br>
 
 3. Compatibility scores between 2 users are stored in the `CompatibilityScores` table in the `LoveBirdsDatabase`
 
-database.
+   database.
+
+
+4. Removed Users i.e skipped users are stored in ``SkippedUsers`` table in th database.
 
 <br>
 
@@ -43,11 +42,13 @@ database.
 
 `dotnet ef migrations list` <br>
 
-There are 2 migrations that need to be completed for the database to operate. The 2 migrations are: <br>
+There are 3 migrations that need to be completed for the database to operate. The 2 migrations are: <br>
 
 1. InitialCreate
 
 2. AddCompatibilityScoresTable
+
+3. AddSkippedUsersTable
 
  
 
@@ -55,15 +56,17 @@ When running the above 'dotnet ef migrations list command', if any of the above 
 
 run these commands on the NuGet package manager console to make sure the migrations are completed:
 
+Run `dotnet ef database update`
+
+If InitialCreate is pending run `dotnet ef database update 20250303172637_InitialCreate` <br>
+
+If AddCompatibilityScoresTable is pending run `dotnet ef database update 20250306062912_AddCompatibilityScores`
+
+If AddCompatibilityScoresTable is pending run `dotnet ef database updte 20250413124504_AddSkippedUsersTable`
+
  
 
-If InitialCreate is pending run `dotnet ef migrations add InitialCreate` <br>
-
-If AddCompatibilityScoresTable is pending run `dotnet ef migrations add AddCompatibilityScoresTable`
-
- 
-
-If you are having any issues with the migration, create the tables manually on the LoveBirdsDatabase in your
+If you are having any issues with the migration, simply create the tables manually on the LoveBirdsDatabase in your
 
 SQL server management studio (SSMS).
 
@@ -73,7 +76,8 @@ SQL server management studio (SSMS).
 
  
 
-```CREATE TABLE Users (
+```
+CREATE TABLE Users (
 
     UserID INT PRIMARY KEY IDENTITY(1,1),
 
@@ -107,7 +111,8 @@ SQL server management studio (SSMS).
 
  
 
-```CREATE TABLE CompatibilityScores (
+```
+CREATE TABLE CompatibilityScores (
 
     Id INT IDENTITY(1,1) PRIMARY KEY,
 
@@ -126,6 +131,21 @@ SQL server management studio (SSMS).
 );
 
 ```
+
+### Creating Users Table Manually
+
+```
+CREATE TABLE SkippedUsers (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    UserId INT NOT NULL,
+    SkippedUserId INT NOT NULL,
+    FOREIGN KEY (UserId) REFERENCES Users(UserID),
+    FOREIGN KEY (SkippedUserId) REFERENCES Users(UserID)
+);
+
+
+```
+
 
 ## Step 2: Connection String
 
@@ -281,6 +301,10 @@ to finish fully.
 
 Click on `Back to Login` and then log in using any user and his/her password from the Users table in the database. <br>
 
- 
 
 Refer to video to see how the most compatible users are displayed on the user interface.
+
+
+## Testing
+Unit testing for this project was conducted using MSTest. 
+All test cases are organized within the test project file `DatingManagementSystem.Tests.csproj`, which is included in the Git repository.
